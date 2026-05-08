@@ -22,6 +22,9 @@ export function useEvents(filters: Omit<EventFilters, "page"> = {}) {
     getNextPageParam: (lastPage) =>
       lastPage.has_more ? lastPage.page + 1 : undefined,
     staleTime: 60_000,
+    networkMode: "always",
+    retry: 2,
+    retryDelay: 1000,
   });
 }
 
@@ -31,6 +34,9 @@ export function useEvent(id: string) {
     queryFn: () => eventsService.getEvent(id),
     staleTime: 60_000,
     enabled: !!id,
+    networkMode: "always",
+    retry: 2,
+    retryDelay: 1000,
   });
 }
 
@@ -46,7 +52,6 @@ export function useJoinEvent() {
       await queryClient.cancelQueries({ queryKey: EVENTS_QUERY_KEY });
       const snapshot = queryClient.getQueryData(EVENTS_QUERY_KEY);
 
-      // Optimistic update on list
       queryClient.setQueryData(
         EVENTS_QUERY_KEY,
         (old: { pages: Array<{ data: Event[] }> } | undefined) => {
@@ -69,7 +74,6 @@ export function useJoinEvent() {
         }
       );
 
-      // Optimistic update on single event cache
       queryClient.setQueryData(
         [...EVENTS_QUERY_KEY, eventId],
         (old: Event | undefined) => {

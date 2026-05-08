@@ -22,6 +22,9 @@ export function useClubs(filters: Omit<ClubFilters, "page"> = {}) {
     getNextPageParam: (lastPage) =>
       lastPage.has_more ? lastPage.page + 1 : undefined,
     staleTime: 60_000,
+    networkMode: "always",
+    retry: 2,
+    retryDelay: 1000,
   });
 }
 
@@ -31,6 +34,9 @@ export function useClub(slug: string) {
     queryFn: () => clubsService.getClub(slug),
     staleTime: 60_000,
     enabled: !!slug,
+    networkMode: "always",
+    retry: 2,
+    retryDelay: 1000,
   });
 }
 
@@ -148,5 +154,8 @@ export function useClubMembers(clubId: string) {
     queryFn: () => clubsService.getClubMembers(clubId),
     staleTime: 30_000,
     enabled: !!clubId,
+    networkMode: "always",
+    retry: 2,
+    retryDelay: 1000,
   });
 }
