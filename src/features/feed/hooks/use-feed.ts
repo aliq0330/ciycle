@@ -14,6 +14,7 @@ export const FEED_QUERY_KEY = ["feed"] as const;
 
 export function useFeed() {
   const user = useAuthStore((s) => s.user);
+  const isInitialized = useAuthStore((s) => s.isInitialized);
 
   return useInfiniteQuery({
     queryKey: FEED_QUERY_KEY,
@@ -29,7 +30,7 @@ export function useFeed() {
         ? allPages.length
         : undefined,
     staleTime: APP_CONFIG.cache.feedStaleTime,
-    enabled: !!user,
+    enabled: isInitialized,
   });
 }
 

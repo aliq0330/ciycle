@@ -8,6 +8,40 @@ import { useAuthStore } from "../store/auth.store";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { ROUTES } from "@/config/app";
 import type { LoginCredentials, RegisterCredentials } from "../types";
+import type { UserProfile } from "@/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/types";
+
+async function fetchOrCreateProfile(
+  supabase: SupabaseClient<Database>,
+  authUser: { id: string; email?: string; user_metadata?: Record<string, string> }
+): Promise<UserProfile | null> {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", authUser.id)
+    .single();
+
+  if (profile) return profile as UserProfile;
+
+  const email = authUser.email ?? "";
+  const meta = authUser.user_metadata ?? {};
+  const rawUsername = meta.username || email.split("@")[0] || `user_${authUser.id.slice(0, 8)}`;
+  const username = rawUsername.replace(/[^a-z0-9_]/gi, "_").toLowerCase();
+
+  const { data: created } = await supabase
+    .from("profiles")
+    .insert({
+      id: authUser.id,
+      username,
+      full_name: meta.full_name || username,
+      vehicle_type: (meta.vehicle_type as Database["public"]["Enums"]["vehicle_type"]) || "motorcycle",
+    })
+    .select("*")
+    .single();
+
+  return (created as UserProfile) ?? null;
+}
 
 export function useAuth() {
   const { user, isLoading, isInitialized, setUser, setLoading, setInitialized, clearAuth } =
@@ -21,12 +55,8 @@ export function useAuth() {
 
     supabase.auth.getUser().then(async ({ data: { user: authUser } }) => {
       if (authUser) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", authUser.id)
-          .single();
-        setUser(profile ?? null);
+        const profile = await fetchOrCreateProfile(supabase, authUser);
+        setUser(profile);
       }
       setLoading(false);
       setInitialized(true);
@@ -34,12 +64,8 @@ export function useAuth() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN" && session?.user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", session.user.id)
-          .single();
-        setUser(profile ?? null);
+        const profile = await fetchOrCreateProfile(supabase, session.user);
+        setUser(profile);
       } else if (event === "SIGNED_OUT") {
         clearAuth();
       }
