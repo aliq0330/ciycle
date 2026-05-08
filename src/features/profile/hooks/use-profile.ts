@@ -28,6 +28,9 @@ export function useProfile(username: string) {
     queryFn: () => profileService.getProfile(username, user?.id),
     staleTime: APP_CONFIG.cache.profileStaleTime,
     enabled: !!username,
+    networkMode: "always",
+    retry: 2,
+    retryDelay: 1000,
   });
 }
 
@@ -40,6 +43,9 @@ export function useProfilePosts(userId: string) {
     getNextPageParam: (lastPage, allPages) =>
       lastPage.length === PAGE_SIZE ? allPages.length : undefined,
     enabled: !!userId,
+    networkMode: "always",
+    retry: 2,
+    retryDelay: 1000,
   });
 }
 
@@ -52,6 +58,9 @@ export function useProfileRoutes(userId: string) {
     getNextPageParam: (lastPage, allPages) =>
       lastPage.length === PAGE_SIZE ? allPages.length : undefined,
     enabled: !!userId,
+    networkMode: "always",
+    retry: 2,
+    retryDelay: 1000,
   });
 }
 
@@ -60,6 +69,9 @@ export function useProfileBadges(userId: string) {
     queryKey: profileKeys.badges(userId),
     queryFn: () => profileService.getProfileBadges(userId),
     enabled: !!userId,
+    networkMode: "always",
+    retry: 1,
+    retryDelay: 1000,
   });
 }
 

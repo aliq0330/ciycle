@@ -1,21 +1,13 @@
-import { getSupabaseClient, type SupabaseClient } from "@/lib/supabase/client";
+import { getSupabaseClient } from "@/lib/supabase/client";
+import { restGet, inList, withAbort } from "@/lib/supabase/rest";
 import type { Route, PaginatedResponse, GeoPoint, RouteStats, Waypoint, ElevationPoint } from "@/types";
 import type { Database } from "@/lib/supabase/types";
 
+type RouteRow = Database["public"]["Tables"]["routes"]["Row"];
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
-
-async function fetchProfileMap(
-  supabase: SupabaseClient,
-  ids: string[]
-): Promise<Map<string, ProfileRow>> {
-  if (ids.length === 0) return new Map();
-  const { data } = await supabase.from("profiles").select("*").in("id", ids);
-  return new Map((data ?? []).map((p) => [p.id, p as ProfileRow]));
-}
 
 export const routesService = {
   async getRoutes({
-    userId,
     page = 0,
     limit = 20,
     difficulty,
@@ -29,57 +21,64 @@ export const routesService = {
     roadType?: Route["road_type"];
     search?: string;
   }): Promise<PaginatedResponse<Route>> {
-    const supabase = getSupabaseClient();
+    return withAbort(async (signal) => {
+      const offset = page * limit;
+      let qs = `routes?select=*&visibility=eq.public&order=created_at.desc&offset=${offset}&limit=${limit}`;
+      if (difficulty) qs += `&difficulty=eq.${encodeURIComponent(difficulty)}`;
+      if (roadType) qs += `&road_type=eq.${encodeURIComponent(roadType)}`;
+      if (search) qs += `&title=ilike.*${encodeURIComponent(search)}*`;
 
-    let query = supabase
-      .from("routes")
-      .select("*", { count: "exact" })
-      .eq("visibility", "public")
-      .range(page * limit, (page + 1) * limit - 1)
-      .order("created_at", { ascending: false });
+      const rows = await restGet<RouteRow[]>(qs, signal);
 
-    if (difficulty) query = query.eq("difficulty", difficulty);
-    if (roadType) query = query.eq("road_type", roadType);
-    if (search) query = query.ilike("title", `%${search}%`);
+      if (rows.length === 0) {
+        return { data: [], total: 0, page, limit, has_more: false };
+      }
 
-    const { data, error, count } = await query;
-    if (error) throw new Error(`routes query failed: ${error.message} (code: ${error.code})`);
+      const authorIds = Array.from(new Set(rows.map((r) => r.author_id)));
+      const profiles = await restGet<ProfileRow[]>(
+        `profiles?select=*&id=in.${inList(authorIds)}`,
+        signal
+      );
+      const profileMap = new Map(profiles.map((p) => [p.id, p]));
 
-    const rows = data ?? [];
-    const authorIds = Array.from(new Set(rows.map((r) => r.author_id)));
-    const profileMap = await fetchProfileMap(supabase, authorIds);
+      const routes = rows.map((row) =>
+        mapRoute(
+          { ...row, author: profileMap.get(row.author_id) ?? null } as Record<string, unknown>,
+          false,
+          false
+        )
+      );
 
-    const routes = rows.map((row) =>
-      mapRoute({ ...row, author: profileMap.get(row.author_id) ?? null }, false, false)
-    );
-
-    return {
-      data: routes,
-      total: count ?? 0,
-      page,
-      limit,
-      has_more: (page + 1) * limit < (count ?? 0),
-    };
+      return {
+        data: routes,
+        total: 0,
+        page,
+        limit,
+        has_more: rows.length >= limit,
+      };
+    });
   },
 
   async getRoute(id: string, _userId?: string): Promise<Route> {
-    const supabase = getSupabaseClient();
+    return withAbort(async (signal) => {
+      const rows = await restGet<RouteRow[]>(
+        `routes?select=*&id=eq.${encodeURIComponent(id)}&limit=1`,
+        signal
+      );
+      if (!rows[0]) throw new Error("Route not found");
 
-    const { data, error } = await supabase
-      .from("routes")
-      .select("*")
-      .eq("id", id)
-      .single();
+      const row = rows[0];
+      const profiles = await restGet<ProfileRow[]>(
+        `profiles?select=*&id=eq.${encodeURIComponent(row.author_id)}&limit=1`,
+        signal
+      );
 
-    if (error) throw new Error(error.message);
-
-    const { data: author } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", data.author_id)
-      .maybeSingle();
-
-    return mapRoute({ ...data, author }, false, false);
+      return mapRoute(
+        { ...row, author: profiles[0] ?? null } as Record<string, unknown>,
+        false,
+        false
+      );
+    });
   },
 
   async createRoute(payload: {
@@ -133,7 +132,11 @@ export const routesService = {
       .eq("id", data.author_id)
       .maybeSingle();
 
-    return mapRoute({ ...data, author }, false, false);
+    return mapRoute(
+      { ...data, author } as Record<string, unknown>,
+      false,
+      false
+    );
   },
 
   async parseGpxFile(file: File): Promise<{

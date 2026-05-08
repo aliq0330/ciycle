@@ -26,6 +26,9 @@ export function useRoutes(filters?: {
     initialPageParam: 0,
     getNextPageParam: (lastPage) =>
       lastPage.has_more ? lastPage.page + 1 : undefined,
+    networkMode: "always",
+    retry: 2,
+    retryDelay: 1000,
   });
 }
 
@@ -36,6 +39,9 @@ export function useRoute(id: string) {
     queryKey: [...ROUTES_QUERY_KEY, id],
     queryFn: () => routesService.getRoute(id, user?.id),
     enabled: !!id,
+    networkMode: "always",
+    retry: 2,
+    retryDelay: 1000,
   });
 }
 
