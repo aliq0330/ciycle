@@ -6,6 +6,30 @@ type PostRow = Database["public"]["Tables"]["posts"]["Row"];
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type CommentRow = Database["public"]["Tables"]["comments"]["Row"];
 
+const SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://placeholder.supabase.co";
+const SUPABASE_ANON_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "placeholder";
+
+// Direct REST fetch — bypasses Supabase JS SDK entirely.
+// The SDK's internal auth state machine + token refresh logic was hanging
+// on page refresh in some browsers. Plain fetch with anon key is rock solid.
+async function restFetch<T>(path: string, signal: AbortSignal): Promise<T> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      Accept: "application/json",
+    },
+    signal,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`REST ${res.status}: ${text || res.statusText}`);
+  }
+  return (await res.json()) as T;
+}
+
 export const feedService = {
   async getFeedPosts({
     userId,
@@ -16,54 +40,59 @@ export const feedService = {
     page?: number;
     limit?: number;
   }): Promise<Post[]> {
-    const supabase = getSupabaseClient();
-
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10_000);
+    const timer = setTimeout(() => controller.abort(), 12_000);
 
-    let posts: PostRow[];
     try {
-      const { data, error } = await supabase
-        .from("posts")
-        .select("*")
-        .range(page * limit, (page + 1) * limit - 1)
-        .order("created_at", { ascending: false })
-        .abortSignal(controller.signal);
+      const offset = page * limit;
+      const posts = await restFetch<PostRow[]>(
+        `posts?select=*&order=created_at.desc&offset=${offset}&limit=${limit}`,
+        controller.signal
+      );
 
-      if (error) throw new Error(`posts query failed: ${error.message} (code: ${error.code})`);
-      posts = (data ?? []) as PostRow[];
+      if (posts.length === 0) return [];
+
+      const postIds = posts.map((p) => p.id);
+      const authorIds = Array.from(new Set(posts.map((p) => p.author_id)));
+
+      const inList = (ids: string[]) =>
+        `(${ids.map((id) => `"${id}"`).join(",")})`;
+
+      const [profiles, likes, saves] = await Promise.all([
+        restFetch<ProfileRow[]>(
+          `profiles?select=*&id=in.${inList(authorIds)}`,
+          controller.signal
+        ),
+        userId
+          ? restFetch<{ post_id: string }[]>(
+              `post_likes?select=post_id&user_id=eq.${userId}&post_id=in.${inList(postIds)}`,
+              controller.signal
+            ).catch(() => [])
+          : Promise.resolve([] as { post_id: string }[]),
+        userId
+          ? restFetch<{ post_id: string }[]>(
+              `post_saves?select=post_id&user_id=eq.${userId}&post_id=in.${inList(postIds)}`,
+              controller.signal
+            ).catch(() => [])
+          : Promise.resolve([] as { post_id: string }[]),
+      ]);
+
+      const profileMap = new Map<string, ProfileRow>(
+        profiles.map((p) => [p.id, p])
+      );
+      const likedSet = new Set(likes.map((l) => l.post_id));
+      const savedSet = new Set(saves.map((s) => s.post_id));
+
+      return posts.map((row) =>
+        buildPost(
+          { ...row, author: profileMap.get(row.author_id) ?? null },
+          likedSet.has(row.id),
+          savedSet.has(row.id)
+        )
+      );
     } finally {
       clearTimeout(timer);
     }
-
-    if (posts.length === 0) return [];
-
-    const postIds = posts.map((p) => p.id);
-    const authorIds = Array.from(new Set(posts.map((p) => p.author_id)));
-
-    const [{ data: profiles }, likesResult, savesResult] = await Promise.all([
-      supabase.from("profiles").select("*").in("id", authorIds),
-      userId
-        ? supabase.from("post_likes").select("post_id").eq("user_id", userId).in("post_id", postIds)
-        : Promise.resolve({ data: [] as { post_id: string }[] }),
-      userId
-        ? supabase.from("post_saves").select("post_id").eq("user_id", userId).in("post_id", postIds)
-        : Promise.resolve({ data: [] as { post_id: string }[] }),
-    ]);
-
-    const profileMap = new Map<string, ProfileRow>(
-      (profiles ?? []).map((p) => [p.id, p as ProfileRow])
-    );
-    const likedSet = new Set((likesResult.data ?? []).map((l) => l.post_id));
-    const savedSet = new Set((savesResult.data ?? []).map((s) => s.post_id));
-
-    return posts.map((row) =>
-      buildPost(
-        { ...(row as PostRow), author: profileMap.get(row.author_id) ?? null },
-        likedSet.has(row.id),
-        savedSet.has(row.id)
-      )
-    );
   },
 
   async createPost(payload: {
@@ -90,11 +119,22 @@ export const feedService = {
         event_id: payload.event_id ?? null,
         club_id: payload.club_id ?? null,
       })
-      .select("*, author:profiles!posts_author_id_fkey(*)")
+      .select("*")
       .single();
 
     if (error) throw new Error(error.message);
-    return buildPost(data as PostRow & { author: ProfileRow }, false, false);
+
+    const { data: author } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", payload.author_id)
+      .maybeSingle();
+
+    return buildPost(
+      { ...(data as PostRow), author: (author as ProfileRow | null) ?? null },
+      false,
+      false
+    );
   },
 
   async toggleLike(postId: string, userId: string): Promise<boolean> {
@@ -143,15 +183,28 @@ export const feedService = {
     const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from("comments")
-      .select("*, author:profiles!comments_author_id_fkey(*)")
+      .select("*")
       .eq("post_id", postId)
       .is("parent_id", null)
       .order("created_at", { ascending: true });
 
     if (error) throw new Error(error.message);
 
-    return (data ?? []).map((row) =>
-      buildComment(row as CommentRow & { author: ProfileRow })
+    const rows = (data ?? []) as CommentRow[];
+    if (rows.length === 0) return [];
+
+    const authorIds = Array.from(new Set(rows.map((r) => r.author_id)));
+    const { data: authors } = await supabase
+      .from("profiles")
+      .select("*")
+      .in("id", authorIds);
+
+    const profileMap = new Map<string, ProfileRow>(
+      ((authors ?? []) as ProfileRow[]).map((p) => [p.id, p])
+    );
+
+    return rows.map((row) =>
+      buildComment({ ...row, author: profileMap.get(row.author_id) ?? null })
     );
   },
 
@@ -170,11 +223,21 @@ export const feedService = {
         content: payload.content,
         parent_id: payload.parent_id ?? null,
       })
-      .select("*, author:profiles!comments_author_id_fkey(*)")
+      .select("*")
       .single();
 
     if (error) throw new Error(error.message);
-    return buildComment(data as CommentRow & { author: ProfileRow });
+
+    const { data: author } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", payload.author_id)
+      .maybeSingle();
+
+    return buildComment({
+      ...(data as CommentRow),
+      author: (author as ProfileRow | null) ?? null,
+    });
   },
 };
 
@@ -236,12 +299,41 @@ function buildPost(
   };
 }
 
-function buildComment(row: CommentRow & { author: ProfileRow }): Comment {
+function buildComment(
+  row: CommentRow & { author: ProfileRow | null }
+): Comment {
+  const author: Comment["author"] = row.author
+    ? (row.author as Comment["author"])
+    : ({
+        id: row.author_id,
+        username: "deleted_user",
+        full_name: "Silinmiş Kullanıcı",
+        avatar_url: null,
+        cover_url: null,
+        bio: null,
+        location: null,
+        website: null,
+        vehicle_type: "motorcycle",
+        subscription_tier: "free",
+        role: "user",
+        xp: 0,
+        level: 1,
+        is_verified: false,
+        is_private: false,
+        followers_count: 0,
+        following_count: 0,
+        posts_count: 0,
+        routes_count: 0,
+        total_distance_km: 0,
+        created_at: row.created_at,
+        updated_at: row.created_at,
+      } as Comment["author"]);
+
   return {
     id: row.id,
     post_id: row.post_id,
     author_id: row.author_id,
-    author: row.author as Comment["author"],
+    author,
     content: row.content,
     parent_id: row.parent_id,
     replies_count: row.replies_count,
