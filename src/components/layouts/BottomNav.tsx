@@ -2,77 +2,57 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Compass, Map, Plus, Bell, User } from "lucide-react";
+import { Home, Compass, Map, Plus, Bell, User, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useSidebarStore } from "@/store/sidebar.store";
 import { ROUTES } from "@/config/app";
-
-const NAV_ITEMS = [
-  { href: ROUTES.feed, icon: Home, label: "Akış" },
-  { href: ROUTES.explore, icon: Compass, label: "Keşfet" },
-  { href: ROUTES.map, icon: Map, label: "Harita" },
-  { href: ROUTES.notifications, icon: Bell, label: "Bildirimler", badge: 12 },
-] as const;
 
 export function BottomNav() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const toggle = useSidebarStore((s) => s.toggle);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden">
-      <div className="glass-strong border-t border-[var(--color-border)] px-2 pb-safe">
-        <div className="flex items-center justify-around h-16">
-          {NAV_ITEMS.slice(0, 2).map((item) => (
-            <NavItem key={item.href} {...item} pathname={pathname} />
-          ))}
+      {/* Blur + border */}
+      <div className="bg-[var(--color-bg-surface)]/80 backdrop-blur-xl border-t border-[var(--color-border)]/60 px-2 pb-safe">
+        <div className="flex items-center justify-around h-16 max-w-md mx-auto">
 
-          {/* FAB - Create */}
+          {/* Akış */}
+          <NavItem href={ROUTES.feed} icon={Home} label="Akış" pathname={pathname} />
+
+          {/* Keşfet */}
+          <NavItem href={ROUTES.explore} icon={Compass} label="Keşfet" pathname={pathname} />
+
+          {/* FAB — ortada */}
           <Link
-            href="/feed"
-            className={cn(
-              "flex h-12 w-12 items-center justify-center rounded-full",
-              "bg-[var(--color-primary)] text-white shadow-[var(--shadow-glow)]",
-              "active:scale-95 transition-transform duration-150"
-            )}
+            href={ROUTES.feed}
+            className="flex h-13 w-13 items-center justify-center rounded-full bg-[var(--color-primary)] text-white shadow-lg shadow-[var(--color-primary)]/40 active:scale-90 transition-transform duration-150 -mt-4"
+            style={{ height: 52, width: 52 }}
           >
-            <Plus className="h-6 w-6" />
+            <Plus className="h-6 w-6" strokeWidth={2.5} />
           </Link>
 
-          {NAV_ITEMS.slice(2).map((item) => (
-            <NavItem key={item.href} {...item} pathname={pathname} />
-          ))}
+          {/* Bildirimler */}
+          <NavItem href={ROUTES.notifications} icon={Bell} label="Bildirimler" pathname={pathname} />
 
-          {/* Profile */}
-          <Link
-            href={user ? ROUTES.profile(user.username) : ROUTES.auth.login}
-            className={cn(
-              "flex flex-col items-center gap-1 py-1 px-3 rounded-[10px] transition-colors",
-              pathname.startsWith("/profile")
-                ? "text-[var(--color-primary)]"
-                : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-            )}
+          {/* Menü (sidebar aç) */}
+          <button
+            onClick={toggle}
+            className="flex flex-col items-center gap-1 py-1 px-3 rounded-[10px] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
           >
-            {user ? (
-              <div className={cn(
-                "h-6 w-6 rounded-full overflow-hidden ring-2",
-                pathname.startsWith("/profile")
-                  ? "ring-[var(--color-primary)]"
-                  : "ring-[var(--color-border)]"
-              )}>
-                {user.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={user.avatar_url} alt={user.full_name} className="h-full w-full object-cover" />
-                ) : (
-                  <div className="h-full w-full bg-[var(--color-bg-elevated)] flex items-center justify-center">
-                    <User className="h-3 w-3" />
-                  </div>
-                )}
+            {user?.avatar_url ? (
+              <div className="h-6 w-6 rounded-full overflow-hidden ring-2 ring-[var(--color-border)]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={user.avatar_url} alt="" className="h-full w-full object-cover" />
               </div>
             ) : (
-              <User className="h-6 w-6" />
+              <Menu className="h-6 w-6" />
             )}
-            <span className="text-[10px] font-medium">Profil</span>
-          </Link>
+            <span className="text-[10px] font-medium">Menü</span>
+          </button>
+
         </div>
       </div>
     </nav>
@@ -107,7 +87,7 @@ function NavItem({
       <div className="relative">
         <Icon className="h-6 w-6" />
         {badge && badge > 0 ? (
-          <span className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center rounded-full bg-[var(--color-primary)] text-white text-[9px] font-bold">
+          <span className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center rounded-full bg-[var(--color-danger)] text-white text-[9px] font-bold">
             {badge > 9 ? "9+" : badge}
           </span>
         ) : null}
