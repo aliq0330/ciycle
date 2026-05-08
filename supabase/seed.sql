@@ -240,7 +240,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO public.routes (id, author_id, title, description, road_type, difficulty, visibility,
   stats, waypoints, start_location, end_location, bbox, tags, likes_count, saves_count, rides_count, comments_count)
 VALUES
-  ('rrrrrrrr-0000-0000-0000-000000000001', u3,
+  ('a0000000-0000-0000-0000-000000000001', u3,
    'İstanbul → Sapanca Gölü',
    'TEM''den çıkıp köy yollarıyla Sapanca Gölü çevresini turlamak harika. Özellikle sonbahar renkleriyle muhteşem.',
    'mixed', 'moderate', 'public',
@@ -252,7 +252,7 @@ VALUES
    ARRAY['hafta sonu','göl','sonbahar','orta seviye'],
    124, 67, 38, 14),
 
-  ('rrrrrrrr-0000-0000-0000-000000000002', u5,
+  ('a0000000-0000-0000-0000-000000000002', u5,
    'Ege Kıyı Yolu — Çeşme → Bodrum',
    '3 günlük efsane Ege turu. Sahil yolları, Yunan adaları manzarası, taze deniz ürünleri.',
    'asphalt', 'easy', 'public',
@@ -264,7 +264,7 @@ VALUES
    ARRAY['ege','kıyı','uzun tur','3 gün','deniz'],
    287, 156, 72, 31),
 
-  ('rrrrrrrr-0000-0000-0000-000000000003', u7,
+  ('a0000000-0000-0000-0000-000000000003', u7,
    'Ankara — Kızılcahamam Offroad',
    'Başkentin hemen kuzeyinde saklı offroad cennet. Çam ormanları, köy yolları ve saf hava.',
    'offroad', 'hard', 'public',
@@ -276,7 +276,7 @@ VALUES
    ARRAY['offroad','orman','zorlu','ankara','dual-sport'],
    89, 43, 21, 8),
 
-  ('rrrrrrrr-0000-0000-0000-000000000004', u2,
+  ('a0000000-0000-0000-0000-000000000004', u2,
    'Ankara Bisiklet Parkuru — Dikmen Vadisi',
    'Başkentte bisiklet cenneti. Dikmen Vadisi''nden başlayıp Eymir Gölü''ne uzanan 28 km''lik parkur.',
    'asphalt', 'easy', 'public',
@@ -288,7 +288,7 @@ VALUES
    ARRAY['bisiklet','şehir','vadi','göl','ankara'],
    56, 29, 44, 7),
 
-  ('rrrrrrrr-0000-0000-0000-000000000005', u1,
+  ('a0000000-0000-0000-0000-000000000005', u1,
    'Boğaz Sahil Yolu — Sarıyer → Üsküdar',
    'İstanbul Boğazı''nın iki yakasını bağlayan romantik sahil turu. Köprü geçişi, yalı seyri.',
    'asphalt', 'easy', 'public',
@@ -305,62 +305,62 @@ ON CONFLICT DO NOTHING;
 INSERT INTO public.posts (id, author_id, content, post_type, tags, media_urls,
   likes_count, comments_count, saves_count, created_at)
 VALUES
-  ('pppppppp-0000-0000-0000-000000000001', u3,
+  ('b0000000-0000-0000-0000-000000000001', u3,
    'Dün Sapanca turunu bitirdim. 180 km, 4 saat, sıfır sorun. BMW GS bu yollar için adeta yapılmış. Artık Türkiye''yi rotaya dökmeye devam ediyorum. Sırada Karadeniz kenarı!',
    'text', ARRAY['bmw','touring','sapanca','motosiklet'], ARRAY[]::text[],
    47, 12, 8, now() - interval '2 days'),
 
-  ('pppppppp-0000-0000-0000-000000000002', u5,
+  ('b0000000-0000-0000-0000-000000000002', u5,
    'Ege turu bitti. 430 km, 3 gün, 1000 anı. Bodrum''a Afrika Twin ile varmak ayrı bir his. Yol arkadaşlarıma teşekkürler. Rota profilimde paylaştım, herkese açık!',
    'text', ARRAY['ege','africa twin','honda','tur','bodrum'], ARRAY[]::text[],
    134, 28, 41, now() - interval '5 days'),
 
-  ('pppppppp-0000-0000-0000-000000000003', u2,
+  ('b0000000-0000-0000-0000-000000000003', u2,
    'Ankara Dikmen Vadisi''nde sabah sporu. 28 km, 1.5 saat. Şehrin tam ortasında bu kadar güzel bir bisiklet parkuru olduğunu bilmiyordum. Kesinlikle tavsiye ederim.',
    'text', ARRAY['bisiklet','ankara','sabah','spor','dikmen'], ARRAY[]::text[],
    31, 7, 5, now() - interval '1 day'),
 
-  ('pppppppp-0000-0000-0000-000000000004', u1,
+  ('b0000000-0000-0000-0000-000000000004', u1,
    'Boğaz''da gün batımı turu harika geçti! İstanbul bu saatte bambaşka güzel. Yakında organize tur düzenleyeceğim, ilgilenenler yorum atsın.',
    'text', ARRAY['istanbul','boğaz','günbatımı','tur'], ARRAY[]::text[],
    89, 23, 17, now() - interval '3 days'),
 
-  ('pppppppp-0000-0000-0000-000000000005', u7,
+  ('b0000000-0000-0000-0000-000000000005', u7,
    'Kızılcahamam offroad rotası gerçekten zormuş. 2 kez düştüm ama ikisi de yumuşak. Orman yollarında dual-sport sürmenin verdiği his inanılmaz. Detaylar rota profilimde.',
    'text', ARRAY['offroad','kızılcahamam','adventure','dual-sport'], ARRAY[]::text[],
    63, 18, 9, now() - interval '4 days'),
 
-  ('pppppppp-0000-0000-0000-000000000006', u4,
+  ('b0000000-0000-0000-0000-000000000006', u4,
    'Bu hafta sonu hem bisiklet hem moto sürdüm. Cumartesi Bursa vadi bisikleti, Pazar sabahı motosikletle İnegöl turu. İkisi de süper. Hangisi daha iyi diye sormayın, ikisi de!',
    'text', ARRAY['bursa','bisiklet','motosiklet','haftasonu'], ARRAY[]::text[],
    28, 9, 4, now() - interval '2 days'),
 
-  ('pppppppp-0000-0000-0000-000000000007', u8,
+  ('b0000000-0000-0000-0000-000000000007', u8,
    'Ducati Monster 821 aldım! Yıllardır hayal ettiğim motoru nihayet kapattım. İlk turumu İstanbul sahilinde yaptım. Hayatımın kararı mı bilinmez ama şu an çok mutluyum!',
    'text', ARRAY['ducati','monster','yeni motor','istanbul'], ARRAY[]::text[],
    156, 42, 23, now() - interval '8 days'),
 
-  ('pppppppp-0000-0000-0000-000000000008', u5,
+  ('b0000000-0000-0000-0000-000000000008', u5,
    'Kapadokya turuna kayıt sayısı dolmak üzere! Hâlâ 7 yer var. Etkinlikler sekmesinden başvurabilirsiniz. 14 gün kaldı, kaçırmayın.',
    'text', ARRAY['kapadokya','tur','etkinlik','kayıt'], ARRAY[]::text[],
    72, 16, 31, now() - interval '1 day'),
 
-  ('pppppppp-0000-0000-0000-000000000009', u6,
+  ('b0000000-0000-0000-0000-000000000009', u6,
    'İlk kez 50 km bisiklet sürdüm! Başlangıç için zor geldi ama bitti. Küçük adımlar büyük zaferleri getirir. Sıradaki hedef: 100 km.',
    'text', ARRAY['bisiklet','hedef','ilkdefa','motivasyon'], ARRAY[]::text[],
    44, 19, 6, now() - interval '6 days'),
 
-  ('pppppppp-0000-0000-0000-000000000010', u3,
+  ('b0000000-0000-0000-0000-000000000010', u3,
    'Anadolu Touring Club olarak bu yıl 12 tur organize ettik. Üyelerimize teşekkürler! Yeni yıl takvimi yakında.',
    'text', ARRAY['kulüp','anadolutouring','touring','yılsonu'], ARRAY[]::text[],
    98, 24, 45, now() - interval '7 days'),
 
-  ('pppppppp-0000-0000-0000-000000000011', u1,
+  ('b0000000-0000-0000-0000-000000000011', u1,
    'Motosiklet bakım ipucu: Zincirinizi her 500 km''de bir kontrol edin. Uzadıysa ayarlayın, kuruysa yağlayın. Bakımlı zincir = uzun ömür = güvenli sürüş.',
    'text', ARRAY['bakım','ipucu','zincir','güvenlik'], ARRAY[]::text[],
    211, 38, 87, now() - interval '10 days'),
 
-  ('pppppppp-0000-0000-0000-000000000012', u2,
+  ('b0000000-0000-0000-0000-000000000012', u2,
    'Bisiklet kaskı takmadan sürüş yapmayın lütfen. Başınız çok değerli. Dün bir kaza gördüm, kasklı olan çok daha iyi çıktı. Güvenlik önce!',
    'text', ARRAY['güvenlik','kask','bisiklet','uyarı'], ARRAY[]::text[],
    167, 31, 52, now() - interval '9 days')
@@ -368,47 +368,47 @@ ON CONFLICT DO NOTHING;
 
 -- ── 8. Beğeniler ──────────────────────────────────────────
 INSERT INTO public.post_likes (post_id, user_id) VALUES
-  ('pppppppp-0000-0000-0000-000000000001', u1),
-  ('pppppppp-0000-0000-0000-000000000001', u5),
-  ('pppppppp-0000-0000-0000-000000000001', u7),
-  ('pppppppp-0000-0000-0000-000000000002', u1),
-  ('pppppppp-0000-0000-0000-000000000002', u3),
-  ('pppppppp-0000-0000-0000-000000000002', u4),
-  ('pppppppp-0000-0000-0000-000000000003', u1),
-  ('pppppppp-0000-0000-0000-000000000003', u6),
-  ('pppppppp-0000-0000-0000-000000000007', u1),
-  ('pppppppp-0000-0000-0000-000000000007', u3),
-  ('pppppppp-0000-0000-0000-000000000007', u5),
-  ('pppppppp-0000-0000-0000-000000000011', u2),
-  ('pppppppp-0000-0000-0000-000000000011', u4),
-  ('pppppppp-0000-0000-0000-000000000011', u6),
-  ('pppppppp-0000-0000-0000-000000000012', u1),
-  ('pppppppp-0000-0000-0000-000000000012', u3),
-  ('pppppppp-0000-0000-0000-000000000012', u7)
+  ('b0000000-0000-0000-0000-000000000001', u1),
+  ('b0000000-0000-0000-0000-000000000001', u5),
+  ('b0000000-0000-0000-0000-000000000001', u7),
+  ('b0000000-0000-0000-0000-000000000002', u1),
+  ('b0000000-0000-0000-0000-000000000002', u3),
+  ('b0000000-0000-0000-0000-000000000002', u4),
+  ('b0000000-0000-0000-0000-000000000003', u1),
+  ('b0000000-0000-0000-0000-000000000003', u6),
+  ('b0000000-0000-0000-0000-000000000007', u1),
+  ('b0000000-0000-0000-0000-000000000007', u3),
+  ('b0000000-0000-0000-0000-000000000007', u5),
+  ('b0000000-0000-0000-0000-000000000011', u2),
+  ('b0000000-0000-0000-0000-000000000011', u4),
+  ('b0000000-0000-0000-0000-000000000011', u6),
+  ('b0000000-0000-0000-0000-000000000012', u1),
+  ('b0000000-0000-0000-0000-000000000012', u3),
+  ('b0000000-0000-0000-0000-000000000012', u7)
 ON CONFLICT DO NOTHING;
 
 -- ── 9. Kaydetmeler ────────────────────────────────────────
 INSERT INTO public.post_saves (post_id, user_id) VALUES
-  ('pppppppp-0000-0000-0000-000000000002', u1),
-  ('pppppppp-0000-0000-0000-000000000002', u7),
-  ('pppppppp-0000-0000-0000-000000000005', u3),
-  ('pppppppp-0000-0000-0000-000000000011', u2),
-  ('pppppppp-0000-0000-0000-000000000011', u4),
-  ('pppppppp-0000-0000-0000-000000000011', u8),
-  ('pppppppp-0000-0000-0000-000000000012', u5)
+  ('b0000000-0000-0000-0000-000000000002', u1),
+  ('b0000000-0000-0000-0000-000000000002', u7),
+  ('b0000000-0000-0000-0000-000000000005', u3),
+  ('b0000000-0000-0000-0000-000000000011', u2),
+  ('b0000000-0000-0000-0000-000000000011', u4),
+  ('b0000000-0000-0000-0000-000000000011', u8),
+  ('b0000000-0000-0000-0000-000000000012', u5)
 ON CONFLICT DO NOTHING;
 
 -- ── 10. Yorumlar ─────────────────────────────────────────
 INSERT INTO public.comments (post_id, author_id, content)
 VALUES
-  ('pppppppp-0000-0000-0000-000000000001', u1, 'Harika görünüyor! Sapanca''yı ben de çok seviyorum, özellikle sabah erken gidince yol bomboş oluyor.'),
-  ('pppppppp-0000-0000-0000-000000000001', u5, 'GS bu tür yollarda gerçekten mükemmel. Karadeniz''de de harika olur!'),
-  ('pppppppp-0000-0000-0000-000000000002', u3, 'Tebrikler! Ben de geçen yıl bu rotayı yaptım, Marmaris kısmı şahaneydi.'),
-  ('pppppppp-0000-0000-0000-000000000007', u1, 'Hayırlı olsun! Monster gerçekten karakterli bir motor. İlk 1000 km''de yavaş yavaş ısın.'),
-  ('pppppppp-0000-0000-0000-000000000007', u5, 'Ducati ailesi büyüyor! Hayırlı olsun.'),
-  ('pppppppp-0000-0000-0000-000000000011', u6, 'Çok faydalı bilgi, teşekkürler! Bisiklet için de geçerli mi?'),
-  ('pppppppp-0000-0000-0000-000000000011', u1, 'Evet, bisiklet zincirleri için de aynı prensip geçerli. Balmumu bazlı yağ kullan.'),
-  ('pppppppp-0000-0000-0000-000000000012', u3, 'Kesinlikle katılıyorum. Kask tartışması olmaz, zorunlu.')
+  ('b0000000-0000-0000-0000-000000000001', u1, 'Harika görünüyor! Sapanca''yı ben de çok seviyorum, özellikle sabah erken gidince yol bomboş oluyor.'),
+  ('b0000000-0000-0000-0000-000000000001', u5, 'GS bu tür yollarda gerçekten mükemmel. Karadeniz''de de harika olur!'),
+  ('b0000000-0000-0000-0000-000000000002', u3, 'Tebrikler! Ben de geçen yıl bu rotayı yaptım, Marmaris kısmı şahaneydi.'),
+  ('b0000000-0000-0000-0000-000000000007', u1, 'Hayırlı olsun! Monster gerçekten karakterli bir motor. İlk 1000 km''de yavaş yavaş ısın.'),
+  ('b0000000-0000-0000-0000-000000000007', u5, 'Ducati ailesi büyüyor! Hayırlı olsun.'),
+  ('b0000000-0000-0000-0000-000000000011', u6, 'Çok faydalı bilgi, teşekkürler! Bisiklet için de geçerli mi?'),
+  ('b0000000-0000-0000-0000-000000000011', u1, 'Evet, bisiklet zincirleri için de aynı prensip geçerli. Balmumu bazlı yağ kullan.'),
+  ('b0000000-0000-0000-0000-000000000012', u3, 'Kesinlikle katılıyorum. Kask tartışması olmaz, zorunlu.')
 ON CONFLICT DO NOTHING;
 
 RAISE NOTICE '✅ Seed data başarıyla yüklendi!';
