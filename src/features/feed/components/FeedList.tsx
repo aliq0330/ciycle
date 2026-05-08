@@ -43,11 +43,14 @@ export function FeedList() {
         <p className="text-[var(--color-text-secondary)]">
           Gönderi yüklenirken hata oluştu.
         </p>
-        <p className="text-xs text-[var(--color-danger)] font-mono bg-[var(--color-bg-elevated)] px-3 py-2 rounded-lg max-w-xs break-all">
+        <p className="text-xs text-[var(--color-danger)] font-mono bg-[var(--color-bg-elevated)] px-3 py-2 rounded-lg max-w-sm break-all text-left">
           {error.message}
         </p>
-        <Button variant="outline" onClick={() => refetch()} leftIcon={<RefreshCw className="h-4 w-4" />}>
-          Tekrar Dene
+        <p className="text-xs text-[var(--color-text-muted)]">
+          Hata türü: {error.name}
+        </p>
+        <Button variant="outline" onClick={() => refetch()}>
+          <RefreshCw className="h-4 w-4 mr-2" /> Tekrar Dene
         </Button>
       </div>
     );

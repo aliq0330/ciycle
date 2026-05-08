@@ -20,11 +20,11 @@ export const feedService = {
 
     const { data, error } = await supabase
       .from("posts")
-      .select("*, author:profiles!posts_author_id_fkey(*)")
+      .select("*, author:profiles!left(*)")
       .range(page * limit, (page + 1) * limit - 1)
       .order("created_at", { ascending: false });
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(`posts query failed: ${error.message} (code: ${error.code})`);
     if (!data || data.length === 0) return [];
 
     const postIds = data.map((p) => p.id);
@@ -162,14 +162,41 @@ export const feedService = {
 };
 
 function buildPost(
-  row: PostRow & { author: ProfileRow },
+  row: PostRow & { author: ProfileRow | null },
   isLiked: boolean,
   isSaved: boolean
 ): Post {
+  const author: Post["author"] = row.author
+    ? (row.author as Post["author"])
+    : ({
+        id: row.author_id,
+        username: "deleted_user",
+        full_name: "Silinmiş Kullanıcı",
+        avatar_url: null,
+        cover_url: null,
+        bio: null,
+        location: null,
+        website: null,
+        vehicle_type: "motorcycle",
+        subscription_tier: "free",
+        role: "user",
+        xp: 0,
+        level: 1,
+        is_verified: false,
+        is_private: false,
+        followers_count: 0,
+        following_count: 0,
+        posts_count: 0,
+        routes_count: 0,
+        total_distance_km: 0,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+      } as Post["author"]);
+
   return {
     id: row.id,
     author_id: row.author_id,
-    author: row.author as Post["author"],
+    author,
     content: row.content,
     post_type: row.post_type,
     media_urls: row.media_urls,
