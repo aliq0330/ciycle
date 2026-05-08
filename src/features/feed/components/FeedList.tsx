@@ -41,7 +41,10 @@ export function FeedList() {
     return (
       <div className="flex flex-col items-center gap-4 py-16 text-center">
         <p className="text-[var(--color-text-secondary)]">
-          Gönderi yüklenirken bir hata oluştu.
+          Gönderi yüklenirken hata oluştu.
+        </p>
+        <p className="text-xs text-[var(--color-danger)] font-mono bg-[var(--color-bg-elevated)] px-3 py-2 rounded-lg max-w-xs break-all">
+          {error.message}
         </p>
         <Button variant="outline" onClick={() => refetch()} leftIcon={<RefreshCw className="h-4 w-4" />}>
           Tekrar Dene
@@ -59,9 +62,12 @@ export function FeedList() {
         <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
           Henüz gönderi yok
         </h3>
-        <p className="text-sm text-[var(--color-text-secondary)] max-w-xs">
-          Birini takip et veya ilk gönderini paylaş!
+        <p className="text-xs text-[var(--color-text-muted)] font-mono mt-2">
+          {process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0, 30) ?? "NO_URL"}
         </p>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
+          Yenile
+        </Button>
       </div>
     );
   }
