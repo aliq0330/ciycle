@@ -107,31 +107,25 @@ export function Sidebar() {
               </li>
             );
           })}
-          {user && (() => {
-            const href = ROUTES.profile(user.username);
-            const isActive = pathname.startsWith(href);
-            return (
-              <li>
-                <Link
-                  href={href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-medium transition-all duration-150 group",
-                    isActive
-                      ? "bg-[var(--color-primary)]/15 text-[var(--color-primary)]"
-                      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-text-primary)]"
-                  )}
-                >
-                  <User
-                    className={cn(
-                      "h-5 w-5 flex-shrink-0 transition-transform duration-150",
-                      isActive ? "text-[var(--color-primary)]" : "group-hover:scale-110"
-                    )}
-                  />
-                  <span className="flex-1">Profil</span>
-                </Link>
-              </li>
-            );
-          })()}
+          <li key="profil">
+            <Link
+              href={user ? ROUTES.profile(user.username) : ROUTES.auth.login}
+              className={cn(
+                "flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-medium transition-all duration-150 group",
+                pathname.startsWith("/profile")
+                  ? "bg-[var(--color-primary)]/15 text-[var(--color-primary)]"
+                  : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-text-primary)]"
+              )}
+            >
+              <User
+                className={cn(
+                  "h-5 w-5 flex-shrink-0 transition-transform duration-150",
+                  pathname.startsWith("/profile") ? "text-[var(--color-primary)]" : "group-hover:scale-110"
+                )}
+              />
+              <span className="flex-1">Profil</span>
+            </Link>
+          </li>
         </ul>
 
         <div className="mt-2 pt-2 border-t border-[var(--color-border)]">
