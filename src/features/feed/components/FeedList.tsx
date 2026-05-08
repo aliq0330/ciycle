@@ -27,7 +27,7 @@ export function FeedList() {
     }
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  if (isLoading || (error && error.name === "AbortError")) {
+  if (isLoading) {
     return (
       <div className="space-y-4">
         {Array.from({ length: 3 }).map((_, i) => (
@@ -37,17 +37,14 @@ export function FeedList() {
     );
   }
 
-  if (error && error.name !== "AbortError") {
+  if (error) {
     return (
       <div className="flex flex-col items-center gap-4 py-16 text-center">
         <p className="text-[var(--color-text-secondary)]">
           Gönderi yüklenirken hata oluştu.
         </p>
         <p className="text-xs text-[var(--color-danger)] font-mono bg-[var(--color-bg-elevated)] px-3 py-2 rounded-lg max-w-sm break-all text-left">
-          {error.message}
-        </p>
-        <p className="text-xs text-[var(--color-text-muted)]">
-          Hata türü: {error.name}
+          [{error.name}] {error.message}
         </p>
         <Button variant="outline" onClick={() => refetch()}>
           <RefreshCw className="h-4 w-4 mr-2" /> Tekrar Dene
