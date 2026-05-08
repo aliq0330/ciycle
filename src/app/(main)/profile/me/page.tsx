@@ -2,19 +2,22 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/features/auth/store/auth.store";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 import { ROUTES } from "@/config/app";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function MyProfileRedirect() {
-  const user = useAuthStore((s) => s.user);
+  const { user, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
+    if (isLoading) return;
     if (user?.username) {
       router.replace(ROUTES.profile(user.username));
+    } else {
+      router.replace(ROUTES.auth.login);
     }
-  }, [user, router]);
+  }, [user, isLoading, router]);
 
   return (
     <div className="space-y-5">
