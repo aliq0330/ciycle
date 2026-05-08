@@ -27,7 +27,7 @@ export function FeedList() {
     }
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  if (isLoading) {
+  if (isLoading || (error && error.name === "AbortError")) {
     return (
       <div className="space-y-4">
         {Array.from({ length: 3 }).map((_, i) => (
@@ -37,7 +37,7 @@ export function FeedList() {
     );
   }
 
-  if (error) {
+  if (error && error.name !== "AbortError") {
     return (
       <div className="flex flex-col items-center gap-4 py-16 text-center">
         <p className="text-[var(--color-text-secondary)]">
@@ -62,12 +62,9 @@ export function FeedList() {
         <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
           Henüz gönderi yok
         </h3>
-        <p className="text-xs text-[var(--color-text-muted)] font-mono mt-2">
-          {process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0, 30) ?? "NO_URL"}
+        <p className="text-sm text-[var(--color-text-secondary)] max-w-xs">
+          Birini takip et veya ilk gönderini paylaş!
         </p>
-        <Button variant="outline" size="sm" onClick={() => refetch()}>
-          Yenile
-        </Button>
       </div>
     );
   }
