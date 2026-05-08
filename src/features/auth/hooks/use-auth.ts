@@ -55,17 +55,28 @@ export function useAuth() {
 
     supabase.auth.getUser().then(async ({ data: { user: authUser } }) => {
       if (authUser) {
-        const profile = await fetchOrCreateProfile(supabase, authUser);
-        setUser(profile);
+        try {
+          const profile = await fetchOrCreateProfile(supabase, authUser);
+          setUser(profile);
+        } catch {
+          setUser(null);
+        }
       }
+      setLoading(false);
+      setInitialized(true);
+    }).catch(() => {
       setLoading(false);
       setInitialized(true);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN" && session?.user) {
-        const profile = await fetchOrCreateProfile(supabase, session.user);
-        setUser(profile);
+        try {
+          const profile = await fetchOrCreateProfile(supabase, session.user);
+          setUser(profile);
+        } catch {
+          setUser(null);
+        }
       } else if (event === "SIGNED_OUT") {
         clearAuth();
       }
