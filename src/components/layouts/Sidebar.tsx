@@ -109,7 +109,7 @@ export function Sidebar() {
           })}
           <li key="profil">
             <Link
-              href={user ? ROUTES.profile(user.username) : ROUTES.auth.login}
+              href="/profile/me"
               className={cn(
                 "flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-medium transition-all duration-150 group",
                 pathname.startsWith("/profile")
