@@ -28,7 +28,7 @@ export function BottomNav() {
 
           {/* FAB - Create */}
           <Link
-            href="/create"
+            href="/feed"
             className={cn(
               "flex h-12 w-12 items-center justify-center rounded-full",
               "bg-[var(--color-primary)] text-white shadow-[var(--shadow-glow)]",
