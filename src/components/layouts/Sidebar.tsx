@@ -32,7 +32,7 @@ export function Sidebar() {
   const { user, logout } = useAuth();
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-[280px] flex flex-col border-r border-[var(--color-border)] bg-[var(--color-bg-surface)] z-40">
+    <aside className="hidden lg:flex fixed left-0 top-0 h-full w-[280px] flex-col border-r border-[var(--color-border)] bg-[var(--color-bg-surface)] z-40">
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-5 py-5 border-b border-[var(--color-border-subtle)]">
         <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[var(--color-primary)]">
