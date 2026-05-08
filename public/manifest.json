@@ -1,0 +1,17 @@
+{
+  "name": "Ciycle",
+  "short_name": "Ciycle",
+  "description": "Motosiklet & bisiklet sosyal ağı",
+  "start_url": "/feed",
+  "display": "standalone",
+  "background_color": "#0F1512",
+  "theme_color": "#3FA36C",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}
