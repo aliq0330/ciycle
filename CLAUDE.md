@@ -234,12 +234,28 @@ CompositeTypes: { [_ in never]: never };
 
 ---
 
-### 3. Next.js 16 Middleware Deprecation Uyarısı
-**Uyarı:** `The "middleware" file convention is deprecated. Please use "proxy" instead.`
+### 3. Next.js 16 Proxy (eski Middleware) — Vercel'de 500 MIDDLEWARE_INVOCATION_FAILED
+**Hata:** `500: INTERNAL_SERVER_ERROR` / `Code: MIDDLEWARE_INVOCATION_FAILED`
 
-**Durum:** `src/middleware.ts` dosyası Next.js 16'da `src/proxy.ts` olarak yeniden adlandırılmalı. Şimdilik çalışıyor fakat production'a geçmeden önce rename edilmeli.
+**Sebep:** Next.js 16'da `middleware.ts` tamamen deprecated. Vercel'de çalışmaz.
+- Dosya adı `proxy.ts` olmalı
+- Export edilen fonksiyon adı `proxy` olmalı (eski: `middleware`)
+- Supabase env var'ları `!` (non-null assertion) ile kullanılırsa Vercel'de keys
+  tanımsızken crash atar
 
-**Çözüm:** `src/middleware.ts` → `src/proxy.ts` rename et. `next.config.ts`'te gerekli değişiklik yok.
+**Çözüm (uygulandı ✅):**
+```ts
+// src/proxy.ts  ← dosya adı
+export async function proxy(request: NextRequest) {  // ← fonksiyon adı
+  return await updateSession(request);
+}
+```
+```ts
+// src/lib/supabase/middleware.ts — ! yerine ?? kullan
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://placeholder.supabase.co";
+// Placeholder ise proxy pass-through döner, crash atmaz
+if (supabaseUrl === "https://placeholder.supabase.co") return supabaseResponse;
+```
 
 ---
 
