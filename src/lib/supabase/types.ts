@@ -623,6 +623,66 @@ export type Database = {
           }
         ];
       };
+
+      vehicles: {
+        Row: {
+          id: string;
+          user_id: string;
+          make: string;
+          model: string;
+          year: number;
+          type: "motorcycle" | "bicycle";
+          color: string | null;
+          plate_number: string | null;
+          odometer_km: number;
+          engine_cc: number | null;
+          notes: string | null;
+          cover_image_url: string | null;
+          is_primary: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          make: string;
+          model: string;
+          year: number;
+          type?: "motorcycle" | "bicycle";
+          color?: string | null;
+          plate_number?: string | null;
+          odometer_km?: number;
+          engine_cc?: number | null;
+          notes?: string | null;
+          cover_image_url?: string | null;
+          is_primary?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          make?: string;
+          model?: string;
+          year?: number;
+          type?: "motorcycle" | "bicycle";
+          color?: string | null;
+          plate_number?: string | null;
+          odometer_km?: number;
+          engine_cc?: number | null;
+          notes?: string | null;
+          cover_image_url?: string | null;
+          is_primary?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
     };
 
     Views: {

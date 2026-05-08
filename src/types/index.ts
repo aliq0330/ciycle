@@ -262,6 +262,28 @@ export interface Notification {
   created_at: Timestamp;
 }
 
+/* ─── Vehicle / Garage ────────────────────────────────────── */
+
+export type VehicleCategory = "motorcycle" | "bicycle";
+
+export interface Vehicle {
+  id: Id;
+  user_id: Id;
+  make: string;
+  model: string;
+  year: number;
+  type: VehicleCategory;
+  color: Nullable<string>;
+  plate_number: Nullable<string>;
+  odometer_km: number;
+  engine_cc: Nullable<number>;
+  notes: Nullable<string>;
+  cover_image_url: Nullable<string>;
+  is_primary: boolean;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
 /* ─── Gamification ────────────────────────────────────────── */
 
 export type BadgeCategory = "distance" | "elevation" | "social" | "events" | "special";
