@@ -18,35 +18,41 @@ export const feedService = {
   }): Promise<Post[]> {
     const supabase = getSupabaseClient();
 
-    const { data, error } = await supabase
+    const { data: posts, error } = await supabase
       .from("posts")
-      .select("*, author:profiles!left(*)")
+      .select("*")
       .range(page * limit, (page + 1) * limit - 1)
       .order("created_at", { ascending: false });
 
     if (error) throw new Error(`posts query failed: ${error.message} (code: ${error.code})`);
-    if (!data || data.length === 0) return [];
+    if (!posts || posts.length === 0) return [];
 
-    const postIds = data.map((p) => p.id);
+    const postIds = posts.map((p) => p.id);
+    const authorIds = Array.from(new Set(posts.map((p) => p.author_id)));
 
-    // Batch fetch likes & saves for this user
-    const [{ data: likedPosts }, { data: savedPosts }] = await Promise.all([
-      supabase
-        .from("post_likes")
-        .select("post_id")
-        .eq("user_id", userId)
-        .in("post_id", postIds),
-      supabase
-        .from("post_saves")
-        .select("post_id")
-        .eq("user_id", userId)
-        .in("post_id", postIds),
+    const [{ data: profiles }, likesResult, savesResult] = await Promise.all([
+      supabase.from("profiles").select("*").in("id", authorIds),
+      userId
+        ? supabase.from("post_likes").select("post_id").eq("user_id", userId).in("post_id", postIds)
+        : Promise.resolve({ data: [] as { post_id: string }[] }),
+      userId
+        ? supabase.from("post_saves").select("post_id").eq("user_id", userId).in("post_id", postIds)
+        : Promise.resolve({ data: [] as { post_id: string }[] }),
     ]);
 
-    const likedSet = new Set((likedPosts ?? []).map((l) => l.post_id));
-    const savedSet = new Set((savedPosts ?? []).map((s) => s.post_id));
+    const profileMap = new Map<string, ProfileRow>(
+      (profiles ?? []).map((p) => [p.id, p as ProfileRow])
+    );
+    const likedSet = new Set((likesResult.data ?? []).map((l) => l.post_id));
+    const savedSet = new Set((savesResult.data ?? []).map((s) => s.post_id));
 
-    return data.map((row) => buildPost(row as PostRow & { author: ProfileRow }, likedSet.has(row.id), savedSet.has(row.id)));
+    return posts.map((row) =>
+      buildPost(
+        { ...(row as PostRow), author: profileMap.get(row.author_id) ?? null },
+        likedSet.has(row.id),
+        savedSet.has(row.id)
+      )
+    );
   },
 
   async createPost(payload: {

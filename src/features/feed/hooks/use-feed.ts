@@ -30,11 +30,8 @@ export function useFeed() {
         : undefined,
     staleTime: APP_CONFIG.cache.feedStaleTime,
     enabled: true,
-    retry: (failureCount, error) => {
-      if (error instanceof Error && error.name === "AbortError") return failureCount < 3;
-      return failureCount < 2;
-    },
-    retryDelay: 1000,
+    retry: 1,
+    retryDelay: 500,
   });
 }
 

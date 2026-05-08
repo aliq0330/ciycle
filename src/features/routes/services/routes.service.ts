@@ -1,5 +1,17 @@
-import { getSupabaseClient } from "@/lib/supabase/client";
+import { getSupabaseClient, type SupabaseClient } from "@/lib/supabase/client";
 import type { Route, PaginatedResponse, GeoPoint, RouteStats, Waypoint, ElevationPoint } from "@/types";
+import type { Database } from "@/lib/supabase/types";
+
+type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+
+async function fetchProfileMap(
+  supabase: SupabaseClient,
+  ids: string[]
+): Promise<Map<string, ProfileRow>> {
+  if (ids.length === 0) return new Map();
+  const { data } = await supabase.from("profiles").select("*").in("id", ids);
+  return new Map((data ?? []).map((p) => [p.id, p as ProfileRow]));
+}
 
 export const routesService = {
   async getRoutes({
@@ -21,7 +33,7 @@ export const routesService = {
 
     let query = supabase
       .from("routes")
-      .select(`*, author:profiles!routes_author_id_fkey(*)`, { count: "exact" })
+      .select("*", { count: "exact" })
       .eq("visibility", "public")
       .range(page * limit, (page + 1) * limit - 1)
       .order("created_at", { ascending: false });
@@ -31,9 +43,15 @@ export const routesService = {
     if (search) query = query.ilike("title", `%${search}%`);
 
     const { data, error, count } = await query;
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(`routes query failed: ${error.message} (code: ${error.code})`);
 
-    const routes = (data ?? []).map((row) => mapRoute(row, false, false));
+    const rows = data ?? [];
+    const authorIds = Array.from(new Set(rows.map((r) => r.author_id)));
+    const profileMap = await fetchProfileMap(supabase, authorIds);
+
+    const routes = rows.map((row) =>
+      mapRoute({ ...row, author: profileMap.get(row.author_id) ?? null }, false, false)
+    );
 
     return {
       data: routes,
@@ -49,12 +67,19 @@ export const routesService = {
 
     const { data, error } = await supabase
       .from("routes")
-      .select(`*, author:profiles!routes_author_id_fkey(*)`)
+      .select("*")
       .eq("id", id)
       .single();
 
     if (error) throw new Error(error.message);
-    return mapRoute(data, false, false);
+
+    const { data: author } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", data.author_id)
+      .maybeSingle();
+
+    return mapRoute({ ...data, author }, false, false);
   },
 
   async createRoute(payload: {
@@ -97,11 +122,18 @@ export const routesService = {
         bbox: payload.bbox ?? [0, 0, 0, 0],
         club_id: payload.club_id ?? null,
       })
-      .select(`*, author:profiles!routes_author_id_fkey(*)`)
+      .select("*")
       .single();
 
     if (error) throw new Error(error.message);
-    return mapRoute(data, false, false);
+
+    const { data: author } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", data.author_id)
+      .maybeSingle();
+
+    return mapRoute({ ...data, author }, false, false);
   },
 
   async parseGpxFile(file: File): Promise<{
