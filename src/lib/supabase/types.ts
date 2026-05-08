@@ -485,6 +485,70 @@ export type Database = {
         Relationships: [];
       };
 
+      conversation_participants: {
+        Row: {
+          conversation_id: string;
+          user_id: string;
+          joined_at: string;
+        };
+        Insert: {
+          conversation_id: string;
+          user_id: string;
+          joined_at?: string;
+        };
+        Update: Record<string, never>;
+        Relationships: [
+          {
+            foreignKeyName: "conversation_participants_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conversation_participants_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+
+      event_participants: {
+        Row: {
+          event_id: string;
+          user_id: string;
+          status: "going" | "maybe" | "not_going";
+          joined_at: string;
+        };
+        Insert: {
+          event_id: string;
+          user_id: string;
+          status?: "going" | "maybe" | "not_going";
+          joined_at?: string;
+        };
+        Update: {
+          status?: "going" | "maybe" | "not_going";
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_participants_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_participants_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+
       messages: {
         Row: {
           id: string;
