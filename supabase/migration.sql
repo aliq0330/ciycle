@@ -564,19 +564,15 @@ create policy "clubs_update" on clubs for update using (
 create policy "clubs_delete" on clubs for delete using (auth.uid() = founder_id);
 
 -- club_members
+-- NOTE: self-referential queries on club_members cause infinite recursion in RLS.
+-- Use auth.uid() = user_id (direct check) instead of subqueries into club_members.
 create policy "club_members_select" on club_members for select using (
-  exists (select 1 from clubs where id = club_members.club_id and visibility = 'public')
-  or exists (select 1 from club_members cm2 where cm2.club_id = club_members.club_id and cm2.user_id = auth.uid())
+  auth.uid() = user_id
+  or exists (select 1 from clubs where id = club_members.club_id and visibility = 'public')
 );
 create policy "club_members_insert" on club_members for insert with check (auth.uid() = user_id);
-create policy "club_members_update" on club_members for update using (
-  auth.uid() = user_id
-  or exists (select 1 from club_members cm2 where cm2.club_id = club_members.club_id and cm2.user_id = auth.uid() and cm2.role in ('founder','admin'))
-);
-create policy "club_members_delete" on club_members for delete using (
-  auth.uid() = user_id
-  or exists (select 1 from club_members cm2 where cm2.club_id = club_members.club_id and cm2.user_id = auth.uid() and cm2.role in ('founder','admin'))
-);
+create policy "club_members_update" on club_members for update using (auth.uid() = user_id);
+create policy "club_members_delete" on club_members for delete using (auth.uid() = user_id);
 
 -- routes
 create policy "routes_select" on routes for select using (
@@ -605,9 +601,11 @@ create policy "event_participants_update" on event_participants for update using
 create policy "event_participants_delete" on event_participants for delete using (auth.uid() = user_id);
 
 -- posts
+-- Allow public posts (club_id IS NULL) or authenticated users for club posts.
+-- Avoid subquery into club_members here to prevent infinite recursion via club_members RLS.
 create policy "posts_select" on posts for select using (
   club_id is null
-  or exists (select 1 from club_members where club_id = posts.club_id and user_id = auth.uid())
+  or auth.uid() is not null
 );
 create policy "posts_insert" on posts for insert with check (auth.uid() = author_id);
 create policy "posts_update" on posts for update using (auth.uid() = author_id);
