@@ -20,12 +20,37 @@ export function FeedList() {
   } = useFeed();
 
   const { ref: loadMoreRef, inView } = useInView({ threshold: 0.1 });
+  const refetchRef = useRef(refetch);
+  refetchRef.current = refetch;
 
   useEffect(() => {
     if (inView && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // iOS Safari bfcache + page refresh recovery: trigger fresh fetch when page becomes visible
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) refetchRef.current();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refetchRef.current();
+    };
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
+
+  // Watchdog: if loading more than 12s, force a fresh refetch
+  useEffect(() => {
+    if (!isLoading) return;
+    const t = setTimeout(() => refetchRef.current(), 12_000);
+    return () => clearTimeout(t);
+  }, [isLoading]);
 
   if (isLoading) {
     return (
