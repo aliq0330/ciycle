@@ -18,13 +18,25 @@ export const feedService = {
   }): Promise<Post[]> {
     const supabase = getSupabaseClient();
 
-    const { data: posts, error } = await supabase
-      .from("posts")
-      .select("*")
-      .range(page * limit, (page + 1) * limit - 1)
-      .order("created_at", { ascending: false });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10_000);
 
-    if (error) throw new Error(`posts query failed: ${error.message} (code: ${error.code})`);
+    let posts: PostRow[];
+    try {
+      const { data, error } = await supabase
+        .from("posts")
+        .select("*")
+        .range(page * limit, (page + 1) * limit - 1)
+        .order("created_at", { ascending: false })
+        .abortSignal(controller.signal);
+
+      if (error) throw new Error(`posts query failed: ${error.message} (code: ${error.code})`);
+      posts = (data ?? []) as PostRow[];
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (posts.length === 0) return [];
     if (!posts || posts.length === 0) return [];
 
     const postIds = posts.map((p) => p.id);

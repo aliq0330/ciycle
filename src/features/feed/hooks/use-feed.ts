@@ -30,8 +30,9 @@ export function useFeed() {
         : undefined,
     staleTime: APP_CONFIG.cache.feedStaleTime,
     enabled: true,
-    retry: 1,
-    retryDelay: 500,
+    networkMode: "always",
+    retry: 2,
+    retryDelay: 1000,
   });
 }
 
