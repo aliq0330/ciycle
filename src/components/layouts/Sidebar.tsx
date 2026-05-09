@@ -19,6 +19,7 @@ import { useSidebarStore } from "@/store/sidebar.store";
 import { useNotificationsStore } from "@/features/notifications/store/notifications.store";
 import { useConversations } from "@/features/chat/hooks/use-chat";
 import { useCreatePostStore } from "@/store/create-post.store";
+import { LevelBadge } from "@/features/gamification/components/LevelBadge";
 import { ROUTES } from "@/config/app";
 
 const STATIC_NAV = [
@@ -204,7 +205,10 @@ export function Sidebar() {
             <Avatar src={user.avatar_url} name={user.full_name} size="md" online verified={user.is_verified} />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{user.full_name}</p>
-              <p className="text-xs text-[var(--color-text-muted)] truncate">@{user.username}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <LevelBadge level={user.level} xp={user.xp} size="sm" />
+                <span className="text-[10px] text-[var(--color-text-muted)]">Sv. {user.level}</span>
+              </div>
             </div>
             <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
           </Link>
