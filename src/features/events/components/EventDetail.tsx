@@ -2,17 +2,23 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { MapPin, Calendar, Users, Clock, Tag } from "lucide-react";
+import { MapPin, Calendar, Users, Clock, Tag, Camera } from "lucide-react";
 import { motion } from "framer-motion";
-import { Avatar, AvatarGroup } from "@/components/ui/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn, formatDate } from "@/lib/utils";
 import { ROUTES } from "@/config/app";
-import { useEvent, useJoinEvent, useLeaveEvent } from "../hooks/use-events";
+import {
+  useEvent,
+  useJoinEvent,
+  useLeaveEvent,
+  useEventParticipants,
+} from "../hooks/use-events";
 import { useAuthStore } from "@/features/auth/store/auth.store";
-import type { Event } from "@/types";
+import type { Event, UserProfile } from "@/types";
 
 const STATUS_CONFIG: Record<
   Event["status"],
@@ -61,12 +67,6 @@ export function EventDetail({ id }: EventDetailProps) {
     }
   };
 
-  // Fake participants for display
-  const fakeParticipants = Array.from(
-    { length: Math.min(event.participants_count, 8) },
-    (_, i) => ({ src: null, name: `Katılımcı ${i + 1}` })
-  );
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -90,137 +90,219 @@ export function EventDetail({ id }: EventDetailProps) {
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-        <div className="absolute bottom-4 left-4">
+        <div className="absolute bottom-4 left-4 flex items-center gap-2">
           <Badge variant={statusCfg.variant}>
             <span className="h-1.5 w-1.5 rounded-full bg-current" />
             {statusCfg.label}
           </Badge>
         </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Title & description */}
-          <div className="space-y-3">
-            <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">
-              {event.title}
-            </h1>
-            <p className="text-[var(--color-text-secondary)] leading-relaxed whitespace-pre-line">
-              {event.description}
-            </p>
-          </div>
-
-          {/* Meta */}
-          <div className="space-y-3 rounded-[16px] bg-[var(--color-bg-surface)] border border-[var(--color-border)] p-4">
-            <MetaRow
-              icon={Calendar}
-              label="Başlangıç"
-              value={formatDate(event.start_at)}
-            />
-            {event.end_at && (
-              <MetaRow
-                icon={Clock}
-                label="Bitiş"
-                value={formatDate(event.end_at)}
-              />
-            )}
-            <MetaRow icon={MapPin} label="Konum" value={event.location_name} />
-            <MetaRow
-              icon={Users}
-              label="Katılımcılar"
-              value={
-                event.max_participants
-                  ? `${event.participants_count} / ${event.max_participants}`
-                  : `${event.participants_count} kişi`
-              }
-            />
-          </div>
-
-          {/* Tags */}
-          {event.tags.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-[var(--color-text-secondary)] flex items-center gap-1.5">
-                <Tag className="h-4 w-4" /> Etiketler
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {event.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full bg-[var(--color-bg-elevated)] px-3 py-1 text-sm text-[var(--color-text-secondary)] border border-[var(--color-border)]"
-                  >
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-4">
-          {/* Join button */}
-          {canParticipate && (
+        {canParticipate && (
+          <div className="absolute bottom-4 right-4">
             <Button
-              className="w-full"
-              size="lg"
+              size="sm"
               variant={event.is_joined ? "secondary" : "default"}
               loading={isPending}
               onClick={handleParticipate}
             >
-              {event.is_joined ? "Etkinlikten Ayrıl" : "Etkinliğe Katıl"}
+              {event.is_joined ? "Ayrıl" : "Katıl"}
             </Button>
-          )}
-
-          {/* Organizer card */}
-          <div className="rounded-[16px] bg-[var(--color-bg-surface)] border border-[var(--color-border)] p-4 space-y-3">
-            <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide">
-              Organizatör
-            </p>
-            <Link
-              href={ROUTES.profile(event.organizer.username)}
-              className="flex items-center gap-3 group"
-            >
-              <Avatar
-                src={event.organizer.avatar_url}
-                name={event.organizer.full_name}
-                size="md"
-                verified={event.organizer.is_verified}
-              />
-              <div>
-                <p className="font-medium text-[var(--color-text-primary)] group-hover:text-[var(--color-primary)] transition-colors">
-                  {event.organizer.full_name}
-                </p>
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  @{event.organizer.username}
-                </p>
-              </div>
-            </Link>
           </div>
+        )}
+      </div>
 
-          {/* Participants preview */}
-          {event.participants_count > 0 && (
-            <div className="rounded-[16px] bg-[var(--color-bg-surface)] border border-[var(--color-border)] p-4 space-y-3">
-              <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide">
-                Katılımcılar ({event.participants_count})
-              </p>
-              <div className="flex items-center gap-3">
-                <AvatarGroup
-                  users={fakeParticipants}
-                  max={8}
-                  size="sm"
-                />
-                {event.participants_count > 8 && (
-                  <span className="text-sm text-[var(--color-text-muted)]">
-                    +{event.participants_count - 8} kişi daha
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
+      {/* Title */}
+      <div>
+        <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">
+          {event.title}
+        </h1>
+        <div className="flex items-center gap-2 mt-1 text-sm text-[var(--color-text-muted)]">
+          <Calendar className="h-3.5 w-3.5" />
+          {formatDate(event.start_at)}
+          <span>·</span>
+          <MapPin className="h-3.5 w-3.5" />
+          {event.location_name}
         </div>
       </div>
+
+      {/* Tabs */}
+      <Tabs defaultValue="info">
+        <TabsList className="w-full grid grid-cols-3">
+          <TabsTrigger value="info">Detaylar</TabsTrigger>
+          <TabsTrigger value="participants">
+            Katılımcılar ({event.participants_count})
+          </TabsTrigger>
+          <TabsTrigger value="gallery">Galeri</TabsTrigger>
+        </TabsList>
+
+        {/* Info tab */}
+        <TabsContent value="info">
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2 space-y-6">
+              {/* Description */}
+              <p className="text-[var(--color-text-secondary)] leading-relaxed whitespace-pre-line">
+                {event.description}
+              </p>
+
+              {/* Meta */}
+              <div className="space-y-3 rounded-[16px] bg-[var(--color-bg-surface)] border border-[var(--color-border)] p-4">
+                <MetaRow icon={Calendar} label="Başlangıç" value={formatDate(event.start_at)} />
+                {event.end_at && (
+                  <MetaRow icon={Clock} label="Bitiş" value={formatDate(event.end_at)} />
+                )}
+                <MetaRow icon={MapPin} label="Konum" value={event.location_name} />
+                <MetaRow
+                  icon={Users}
+                  label="Katılımcılar"
+                  value={
+                    event.max_participants
+                      ? `${event.participants_count} / ${event.max_participants}`
+                      : `${event.participants_count} kişi`
+                  }
+                />
+              </div>
+
+              {/* Tags */}
+              {event.tags.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-[var(--color-text-secondary)] flex items-center gap-1.5">
+                    <Tag className="h-4 w-4" /> Etiketler
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {event.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full bg-[var(--color-bg-elevated)] px-3 py-1 text-sm text-[var(--color-text-secondary)] border border-[var(--color-border)]"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-4">
+              {canParticipate && (
+                <Button
+                  className="w-full"
+                  size="lg"
+                  variant={event.is_joined ? "secondary" : "default"}
+                  loading={isPending}
+                  onClick={handleParticipate}
+                >
+                  {event.is_joined ? "Etkinlikten Ayrıl" : "Etkinliğe Katıl"}
+                </Button>
+              )}
+
+              {/* Organizer */}
+              <div className="rounded-[16px] bg-[var(--color-bg-surface)] border border-[var(--color-border)] p-4 space-y-3">
+                <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide">
+                  Organizatör
+                </p>
+                <Link
+                  href={ROUTES.profile(event.organizer.username)}
+                  className="flex items-center gap-3 group"
+                >
+                  <Avatar
+                    src={event.organizer.avatar_url}
+                    name={event.organizer.full_name}
+                    size="md"
+                    verified={event.organizer.is_verified}
+                  />
+                  <div>
+                    <p className="font-medium text-[var(--color-text-primary)] group-hover:text-[var(--color-primary)] transition-colors">
+                      {event.organizer.full_name}
+                    </p>
+                    <p className="text-xs text-[var(--color-text-muted)]">
+                      @{event.organizer.username}
+                    </p>
+                  </div>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Participants tab */}
+        <TabsContent value="participants">
+          <ParticipantsTab eventId={id} />
+        </TabsContent>
+
+        {/* Gallery tab */}
+        <TabsContent value="gallery">
+          <div className="flex flex-col items-center gap-4 py-20 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--color-bg-surface)]">
+              <Camera className="h-8 w-8 text-[var(--color-text-muted)]" />
+            </div>
+            <div>
+              <p className="font-semibold text-[var(--color-text-primary)]">
+                Galeri yakında aktif olacak
+              </p>
+              <p className="text-sm text-[var(--color-text-muted)] mt-1">
+                Etkinlik fotoğrafları burada görünecek
+              </p>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </motion.div>
+  );
+}
+
+function ParticipantsTab({ eventId }: { eventId: string }) {
+  const { data: participants, isLoading } = useEventParticipants(eventId);
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-20 rounded-[14px]" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!participants || participants.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-16 text-center">
+        <span className="text-4xl">👥</span>
+        <p className="text-sm text-[var(--color-text-secondary)]">
+          Henüz katılımcı yok
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+      {participants.map((person: UserProfile) => (
+        <Link
+          key={person.id}
+          href={ROUTES.profile(person.username)}
+          className={cn(
+            "flex flex-col items-center gap-2 rounded-[14px] p-3",
+            "bg-[var(--color-bg-surface)] border border-[var(--color-border)]",
+            "hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-bg-elevated)] transition-colors"
+          )}
+        >
+          <Avatar
+            src={person.avatar_url}
+            name={person.full_name}
+            size="md"
+            verified={person.is_verified}
+          />
+          <div className="text-center min-w-0 w-full">
+            <p className="text-xs font-medium text-[var(--color-text-primary)] truncate">
+              {person.full_name}
+            </p>
+            <p className="text-[10px] text-[var(--color-text-muted)] truncate">
+              @{person.username}
+            </p>
+          </div>
+        </Link>
+      ))}
+    </div>
   );
 }
 
@@ -250,9 +332,10 @@ function EventDetailSkeleton() {
   return (
     <div className="space-y-6">
       <Skeleton className="h-64 w-full" />
+      <Skeleton className="h-8 w-3/4" />
+      <Skeleton className="h-10 w-full rounded-[10px]" />
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
-          <Skeleton className="h-8 w-3/4" />
           <div className="space-y-2">
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-5/6" />

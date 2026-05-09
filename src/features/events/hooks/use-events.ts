@@ -162,6 +162,18 @@ export function useLeaveEvent() {
   });
 }
 
+export function useEventParticipants(eventId: string) {
+  return useQuery({
+    queryKey: [...EVENTS_QUERY_KEY, eventId, "participants"],
+    queryFn: () => eventsService.getEventParticipants(eventId),
+    enabled: !!eventId,
+    staleTime: 30_000,
+    networkMode: "always",
+    retry: 1,
+    retryDelay: 1000,
+  });
+}
+
 export function useCreateEvent() {
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
