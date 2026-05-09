@@ -13,6 +13,18 @@ import type { Club } from "@/types";
 
 export const CLUBS_QUERY_KEY = ["clubs"] as const;
 
+export function useUserClubs(userId: string) {
+  return useQuery({
+    queryKey: [...CLUBS_QUERY_KEY, "user", userId],
+    queryFn: () => clubsService.getUserClubs(userId),
+    enabled: !!userId,
+    staleTime: 60_000,
+    networkMode: "always",
+    retry: 2,
+    retryDelay: 1000,
+  });
+}
+
 export function useClubs(filters: Omit<ClubFilters, "page"> = {}) {
   return useInfiniteQuery({
     queryKey: [...CLUBS_QUERY_KEY, filters],
@@ -41,11 +53,9 @@ export function useJoinClub() {
   return useMutation({
     mutationFn: ({ clubId }: { clubId: string }) =>
       clubsService.joinClub(clubId, user!.id),
-
     onMutate: async ({ clubId }) => {
       await queryClient.cancelQueries({ queryKey: CLUBS_QUERY_KEY });
       const snapshot = queryClient.getQueryData(CLUBS_QUERY_KEY);
-
       queryClient.setQueryData(
         CLUBS_QUERY_KEY,
         (old: { pages: Array<{ data: Club[] }> } | undefined) => {
@@ -63,16 +73,11 @@ export function useJoinClub() {
           };
         }
       );
-
       return { snapshot };
     },
-
     onError: (_err, _vars, context) => {
-      if (context?.snapshot) {
-        queryClient.setQueryData(CLUBS_QUERY_KEY, context.snapshot);
-      }
+      if (context?.snapshot) queryClient.setQueryData(CLUBS_QUERY_KEY, context.snapshot);
     },
-
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: CLUBS_QUERY_KEY });
     },
@@ -86,11 +91,9 @@ export function useLeaveClub() {
   return useMutation({
     mutationFn: ({ clubId }: { clubId: string }) =>
       clubsService.leaveClub(clubId, user!.id),
-
     onMutate: async ({ clubId }) => {
       await queryClient.cancelQueries({ queryKey: CLUBS_QUERY_KEY });
       const snapshot = queryClient.getQueryData(CLUBS_QUERY_KEY);
-
       queryClient.setQueryData(
         CLUBS_QUERY_KEY,
         (old: { pages: Array<{ data: Club[] }> } | undefined) => {
@@ -101,28 +104,18 @@ export function useLeaveClub() {
               ...page,
               data: page.data.map((club) =>
                 club.id === clubId
-                  ? {
-                      ...club,
-                      is_member: false,
-                      my_role: null,
-                      member_count: Math.max(0, club.member_count - 1),
-                    }
+                  ? { ...club, is_member: false, my_role: null, member_count: Math.max(0, club.member_count - 1) }
                   : club
               ),
             })),
           };
         }
       );
-
       return { snapshot };
     },
-
     onError: (_err, _vars, context) => {
-      if (context?.snapshot) {
-        queryClient.setQueryData(CLUBS_QUERY_KEY, context.snapshot);
-      }
+      if (context?.snapshot) queryClient.setQueryData(CLUBS_QUERY_KEY, context.snapshot);
     },
-
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: CLUBS_QUERY_KEY });
     },

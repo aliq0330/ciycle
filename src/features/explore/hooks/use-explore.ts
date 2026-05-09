@@ -32,6 +32,9 @@ export function useSearch(query: string) {
     enabled: debouncedQuery.length >= 2,
     staleTime: 30_000,
     placeholderData: (prev) => prev,
+    networkMode: "always",
+    retry: 1,
+    retryDelay: 1000,
   });
 }
 
@@ -45,6 +48,9 @@ export function useTrendingPosts() {
     getNextPageParam: (lastPage, allPages) =>
       lastPage.length === 20 ? allPages.length : undefined,
     staleTime: 60_000,
+    networkMode: "always",
+    retry: 2,
+    retryDelay: 1000,
   });
 }
 
@@ -55,6 +61,9 @@ export function useTrendingHashtags() {
     queryKey: TRENDING_HASHTAGS_KEY,
     queryFn: () => exploreService.getTrendingHashtags(),
     staleTime: 300_000,
+    networkMode: "always",
+    retry: 1,
+    retryDelay: 1000,
   });
 }
 
@@ -68,6 +77,9 @@ export function useSuggestedUsers() {
     queryFn: () => exploreService.getSuggestedUsers(user!.id),
     enabled: !!user,
     staleTime: 300_000,
+    networkMode: "always",
+    retry: 1,
+    retryDelay: 1000,
   });
 }
 

@@ -1,21 +1,32 @@
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { restGet, restCount, inList, withAbort } from "@/lib/supabase/rest";
 import type { Event, PaginatedResponse, UserProfile } from "@/types";
 import type { Database } from "@/lib/supabase/types";
 import type { CreateEventPayload, EventFilters } from "../types";
 
 type EventRow = Database["public"]["Tables"]["events"]["Row"];
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+type EventParticipantRow = Database["public"]["Tables"]["event_participants"]["Row"];
 
 const PAGE_SIZE = 12;
 
+function buildProfile(row: ProfileRow): UserProfile {
+  return row as unknown as UserProfile;
+}
+
 function buildEvent(
-  row: EventRow & { organizer: ProfileRow },
+  row: EventRow & { organizer: ProfileRow | null },
   isJoined: boolean
 ): Event {
   return {
     id: row.id,
     organizer_id: row.organizer_id,
-    organizer: row.organizer as Event["organizer"],
+    organizer: (row.organizer ?? {
+      id: row.organizer_id,
+      username: "deleted_user",
+      full_name: "Silinmiş Kullanıcı",
+      avatar_url: null,
+    }) as Event["organizer"],
     club_id: row.club_id,
     title: row.title,
     description: row.description,
@@ -35,69 +46,78 @@ function buildEvent(
   };
 }
 
+function statusFilter(status?: string): string {
+  if (!status || status === "all") return `&status=in.("published","ongoing")`;
+  if (status === "upcoming") {
+    const now = encodeURIComponent(new Date().toISOString());
+    return `&status=eq.published&start_at=gte.${now}`;
+  }
+  if (status === "ongoing") return `&status=eq.ongoing`;
+  if (status === "completed") return `&status=in.("completed","cancelled")`;
+  return `&status=in.("published","ongoing")`;
+}
+
 export const eventsService = {
   async getEvents({
     page = 0,
     search,
     status,
+    clubId,
   }: EventFilters): Promise<PaginatedResponse<Event>> {
-    const supabase = getSupabaseClient();
-    const from = page * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
-
-    let query = supabase
-      .from("events")
-      .select("*, organizer:profiles!events_organizer_id_fkey(*)", {
-        count: "exact",
-      })
-      .order("start_at", { ascending: true })
-      .range(from, to);
-
-    if (search) {
-      query = query.ilike("title", `%${search}%`);
-    }
-
-    if (status && status !== "all") {
-      if (status === "upcoming") {
-        query = query.in("status", ["published"]).gte("start_at", new Date().toISOString());
-      } else if (status === "ongoing") {
-        query = query.eq("status", "ongoing");
-      } else if (status === "completed") {
-        query = query.in("status", ["completed", "cancelled"]);
+    return withAbort(async (signal) => {
+      const offset = page * PAGE_SIZE;
+      let qs = `events?select=*&order=start_at.asc&offset=${offset}&limit=${PAGE_SIZE}`;
+      if (clubId) {
+        qs += `&club_id=eq.${encodeURIComponent(clubId)}`;
       }
-    } else {
-      query = query.in("status", ["published", "ongoing"]);
-    }
+      qs += statusFilter(status);
+      if (search) qs += `&title=ilike.*${encodeURIComponent(search)}*`;
 
-    const { data, error, count } = await query;
+      const rows = await restGet<EventRow[]>(qs, signal);
+      if (rows.length === 0) {
+        return { data: [], total: 0, page, limit: PAGE_SIZE, has_more: false };
+      }
 
-    if (error) throw new Error(error.message);
+      const organizerIds = Array.from(new Set(rows.map((r) => r.organizer_id)));
+      const profiles = await restGet<ProfileRow[]>(
+        `profiles?select=*&id=in.${inList(organizerIds)}`,
+        signal
+      ).catch(() => [] as ProfileRow[]);
+      const profileMap = new Map(profiles.map((p) => [p.id, p]));
 
-    const total = count ?? 0;
-    const events = (data ?? []).map((row) =>
-      buildEvent(row as EventRow & { organizer: ProfileRow }, false)
-    );
+      const events = rows.map((row) =>
+        buildEvent(
+          { ...row, organizer: profileMap.get(row.organizer_id) ?? null },
+          false
+        )
+      );
 
-    return {
-      data: events,
-      total,
-      page,
-      limit: PAGE_SIZE,
-      has_more: from + events.length < total,
-    };
+      return {
+        data: events,
+        total: 0,
+        page,
+        limit: PAGE_SIZE,
+        has_more: rows.length >= PAGE_SIZE,
+      };
+    });
   },
 
   async getEvent(id: string): Promise<Event> {
-    const supabase = getSupabaseClient();
+    return withAbort(async (signal) => {
+      const rows = await restGet<EventRow[]>(
+        `events?select=*&id=eq.${encodeURIComponent(id)}&limit=1`,
+        signal
+      );
+      if (!rows[0]) throw new Error("Etkinlik bulunamadı");
 
-    const { data, error } = await supabase
-      .from("events")
-      .select("*, organizer:profiles!events_organizer_id_fkey(*)")
-      .eq("id", id)
-      .single();
+      const row = rows[0];
+      const profiles = await restGet<ProfileRow[]>(
+        `profiles?select=*&id=eq.${encodeURIComponent(row.organizer_id)}&limit=1`,
+        signal
+      ).catch(() => [] as ProfileRow[]);
 
-    if (error) throw new Error(error.message);
-    return buildEvent(data as EventRow & { organizer: ProfileRow }, false);
+      return buildEvent({ ...row, organizer: profiles[0] ?? null }, false);
+    });
   },
 
   async createEvent(
@@ -121,11 +141,21 @@ export const eventsService = {
         route_id: payload.route_id ?? null,
         status: "published",
       })
-      .select("*, organizer:profiles!events_organizer_id_fkey(*)")
+      .select("*")
       .single();
 
     if (error) throw new Error(error.message);
-    return buildEvent(data as EventRow & { organizer: ProfileRow }, false);
+
+    const { data: organizer } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", payload.organizer_id)
+      .maybeSingle();
+
+    return buildEvent(
+      { ...(data as EventRow), organizer: (organizer as ProfileRow | null) ?? null },
+      false
+    );
   },
 
   async updateEvent(
@@ -143,32 +173,60 @@ export const eventsService = {
       .from("events")
       .update(payload)
       .eq("id", id)
-      .select("*, organizer:profiles!events_organizer_id_fkey(*)")
+      .select("*")
       .single();
 
     if (error) throw new Error(error.message);
-    return buildEvent(data as EventRow & { organizer: ProfileRow }, false);
+
+    const { data: organizer } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", (data as EventRow).organizer_id)
+      .maybeSingle();
+
+    return buildEvent(
+      { ...(data as EventRow), organizer: (organizer as ProfileRow | null) ?? null },
+      false
+    );
   },
 
   async joinEvent(eventId: string, userId: string): Promise<void> {
-    // Stub: in production wire up event_participants table RPC
-    void eventId;
-    void userId;
+    const supabase = getSupabaseClient();
+    const { error } = await supabase
+      .from("event_participants")
+      .upsert({ event_id: eventId, user_id: userId, status: "going" });
+    if (error) throw new Error(error.message);
   },
 
   async leaveEvent(eventId: string, userId: string): Promise<void> {
-    // Stub: in production wire up event_participants table RPC
-    void eventId;
-    void userId;
+    const supabase = getSupabaseClient();
+    const { error } = await supabase
+      .from("event_participants")
+      .delete()
+      .eq("event_id", eventId)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
   },
 
-  async getEventParticipants(_eventId: string): Promise<UserProfile[]> {
-    // Stub: in production join event_participants → profiles
-    return [];
+  async getEventParticipants(eventId: string): Promise<UserProfile[]> {
+    const rows = await restGet<EventParticipantRow[]>(
+      `event_participants?event_id=eq.${eventId}&select=user_id`
+    ).catch(() => [] as EventParticipantRow[]);
+
+    if (rows.length === 0) return [];
+
+    const ids = rows.map((r: EventParticipantRow) => r.user_id).join(",");
+    const profiles = await restGet<ProfileRow[]>(
+      `profiles?id=in.(${ids})&select=*`
+    ).catch(() => [] as ProfileRow[]);
+
+    return profiles.map(buildProfile);
   },
 
-  async checkIsJoined(_eventId: string, _userId: string): Promise<boolean> {
-    // Stub: in production query event_participants
-    return false;
+  async checkIsJoined(eventId: string, userId: string): Promise<boolean> {
+    const count = await restCount(
+      `event_participants?event_id=eq.${eventId}&user_id=eq.${userId}`
+    ).catch(() => 0);
+    return count > 0;
   },
 };

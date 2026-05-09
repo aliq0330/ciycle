@@ -1,6 +1,6 @@
-/* ─── Supabase DB type definitions ────────────────────────
+/* ─── Supabase DB type definitions ───────────────────────
    Production'da: npx supabase gen types typescript --project-id <id>
-   ─────────────────────────────────────────────────────── */
+   ─────────────────────────────────────────────────── */
 
 export type Json =
   | string
@@ -167,16 +167,8 @@ export type Database = {
       };
 
       post_likes: {
-        Row: {
-          post_id: string;
-          user_id: string;
-          created_at: string;
-        };
-        Insert: {
-          post_id: string;
-          user_id: string;
-          created_at?: string;
-        };
+        Row: { post_id: string; user_id: string; created_at: string };
+        Insert: { post_id: string; user_id: string; created_at?: string };
         Update: Record<string, never>;
         Relationships: [
           {
@@ -190,16 +182,8 @@ export type Database = {
       };
 
       post_saves: {
-        Row: {
-          post_id: string;
-          user_id: string;
-          created_at: string;
-        };
-        Insert: {
-          post_id: string;
-          user_id: string;
-          created_at?: string;
-        };
+        Row: { post_id: string; user_id: string; created_at: string };
+        Insert: { post_id: string; user_id: string; created_at?: string };
         Update: Record<string, never>;
         Relationships: [
           {
@@ -233,9 +217,7 @@ export type Database = {
           likes_count?: number;
           created_at?: string;
         };
-        Update: {
-          content?: string;
-        };
+        Update: { content?: string };
         Relationships: [
           {
             foreignKeyName: "comments_post_id_fkey";
@@ -477,25 +459,13 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
-        Update: {
-          name?: string | null;
-          avatar_url?: string | null;
-          updated_at?: string;
-        };
+        Update: { name?: string | null; avatar_url?: string | null; updated_at?: string };
         Relationships: [];
       };
 
       conversation_participants: {
-        Row: {
-          conversation_id: string;
-          user_id: string;
-          joined_at: string;
-        };
-        Insert: {
-          conversation_id: string;
-          user_id: string;
-          joined_at?: string;
-        };
+        Row: { conversation_id: string; user_id: string; joined_at: string };
+        Insert: { conversation_id: string; user_id: string; joined_at?: string };
         Update: Record<string, never>;
         Relationships: [
           {
@@ -528,9 +498,7 @@ export type Database = {
           status?: "going" | "maybe" | "not_going";
           joined_at?: string;
         };
-        Update: {
-          status?: "going" | "maybe" | "not_going";
-        };
+        Update: { status?: "going" | "maybe" | "not_going" };
         Relationships: [
           {
             foreignKeyName: "event_participants_event_id_fkey";
@@ -572,10 +540,7 @@ export type Database = {
           reactions?: Json;
           created_at?: string;
         };
-        Update: {
-          is_read?: boolean;
-          reactions?: Json;
-        };
+        Update: { is_read?: boolean; reactions?: Json };
         Relationships: [
           {
             foreignKeyName: "messages_conversation_id_fkey";
@@ -610,12 +575,70 @@ export type Database = {
           is_read?: boolean;
           created_at?: string;
         };
-        Update: {
-          is_read?: boolean;
-        };
+        Update: { is_read?: boolean };
         Relationships: [
           {
             foreignKeyName: "notifications_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+
+      vehicles: {
+        Row: {
+          id: string;
+          user_id: string;
+          make: string;
+          model: string;
+          year: number;
+          type: "motorcycle" | "bicycle";
+          color: string | null;
+          plate_number: string | null;
+          odometer_km: number;
+          engine_cc: number | null;
+          notes: string | null;
+          cover_image_url: string | null;
+          is_primary: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          make: string;
+          model: string;
+          year: number;
+          type?: "motorcycle" | "bicycle";
+          color?: string | null;
+          plate_number?: string | null;
+          odometer_km?: number;
+          engine_cc?: number | null;
+          notes?: string | null;
+          cover_image_url?: string | null;
+          is_primary?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          make?: string;
+          model?: string;
+          year?: number;
+          type?: "motorcycle" | "bicycle";
+          color?: string | null;
+          plate_number?: string | null;
+          odometer_km?: number;
+          engine_cc?: number | null;
+          notes?: string | null;
+          cover_image_url?: string | null;
+          is_primary?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_user_id_fkey";
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";

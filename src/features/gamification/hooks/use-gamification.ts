@@ -17,6 +17,9 @@ export function useLeaderboard(type: LeaderboardType) {
     queryKey: gamificationKeys.leaderboard(type),
     queryFn: () => gamificationService.getLeaderboard(type),
     staleTime: 60_000,
+    networkMode: "always",
+    retry: 2,
+    retryDelay: 1000,
   });
 }
 
@@ -26,5 +29,8 @@ export function useUserBadges(userId: string) {
     queryFn: () => gamificationService.getUserBadges(userId),
     enabled: !!userId,
     staleTime: 300_000,
+    networkMode: "always",
+    retry: 1,
+    retryDelay: 1000,
   });
 }

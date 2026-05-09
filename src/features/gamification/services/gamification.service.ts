@@ -1,4 +1,5 @@
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { restGet, withAbort } from "@/lib/supabase/rest";
 import type { UserProfile, UserBadge } from "@/types";
 import type { Database } from "@/lib/supabase/types";
 
@@ -52,58 +53,49 @@ function buildProfile(row: ProfileRow): UserProfile {
 
 export const gamificationService = {
   async getLeaderboard(type: LeaderboardType): Promise<LeaderboardEntry[]> {
-    const supabase = getSupabaseClient();
+    return withAbort(async (signal) => {
+      const orderCol =
+        type === "global"
+          ? "xp"
+          : type === "distance"
+          ? "total_distance_km"
+          : "routes_count";
 
-    const orderColumn =
-      type === "global"
-        ? "xp"
-        : type === "distance"
-        ? "total_distance_km"
-        : "routes_count";
+      const rows = await restGet<ProfileRow[]>(
+        `profiles?select=*&is_private=eq.false&order=${orderCol}.desc&limit=100`,
+        signal
+      );
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("is_private", false)
-      .order(orderColumn, { ascending: false })
-      .limit(100);
-
-    if (error) throw new Error(error.message);
-    if (!data || data.length === 0) return [];
-
-    return data.map((row, i) => ({
-      rank: i + 1,
-      profile: buildProfile(row),
-      xp: row.xp,
-      level: row.level,
-      total_distance_km: row.total_distance_km,
-      routes_count: row.routes_count,
-    }));
+      return rows.map((row, i) => ({
+        rank: i + 1,
+        profile: buildProfile(row),
+        xp: row.xp,
+        level: row.level,
+        total_distance_km: row.total_distance_km,
+        routes_count: row.routes_count,
+      }));
+    });
   },
 
   async getUserBadges(userId: string): Promise<UserBadge[]> {
     const supabase = getSupabaseClient();
-
     const { data, error } = await supabase
       .from("user_badges" as never)
       .select("*, badge:badges(*)")
       .eq("user_id", userId)
       .order("earned_at", { ascending: false });
-
     if (error) return [];
     return (data ?? []) as UserBadge[];
   },
 
   async getUserXPHistory(userId: string): Promise<XPEvent[]> {
     const supabase = getSupabaseClient();
-
     const { data, error } = await supabase
       .from("xp_events" as never)
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(50);
-
     if (error) return [];
     return (data ?? []) as XPEvent[];
   },

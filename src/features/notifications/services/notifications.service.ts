@@ -1,4 +1,5 @@
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { restGet, restCount, inList, withAbort } from "@/lib/supabase/rest";
 import type { Notification } from "@/types";
 import type { Database } from "@/lib/supabase/types";
 
@@ -26,36 +27,30 @@ function buildNotification(
 
 export const notificationsService = {
   async getNotifications(userId: string, page: number): Promise<Notification[]> {
-    const supabase = getSupabaseClient();
+    if (!userId) return [];
+    return withAbort(async (signal) => {
+      const offset = page * PAGE_SIZE;
+      const rows = await restGet<NotificationRow[]>(
+        `notifications?select=*&user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&offset=${offset}&limit=${PAGE_SIZE}`,
+        signal
+      );
+      if (rows.length === 0) return [];
 
-    const { data, error } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      const actorIds = Array.from(new Set(rows.map((n) => n.actor_id)));
+      const profiles = await restGet<ProfileRow[]>(
+        `profiles?select=*&id=in.${inList(actorIds)}`,
+        signal
+      ).catch(() => [] as ProfileRow[]);
+      const profileMap = new Map(profiles.map((p) => [p.id, p]));
 
-    if (error) throw new Error(error.message);
-    if (!data || data.length === 0) return [];
-
-    // Batch fetch actor profiles
-    const actorIds = [...new Set(data.map((n) => n.actor_id))];
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("*")
-      .in("id", actorIds);
-
-    const profileMap = new Map(
-      (profiles ?? []).map((p) => [p.id, p as ProfileRow])
-    );
-
-    return data
-      .map((row) => {
-        const actor = profileMap.get(row.actor_id);
-        if (!actor) return null;
-        return buildNotification(row, actor);
-      })
-      .filter((n): n is Notification => n !== null);
+      return rows
+        .map((row) => {
+          const actor = profileMap.get(row.actor_id);
+          if (!actor) return null;
+          return buildNotification(row, actor);
+        })
+        .filter((n): n is Notification => n !== null);
+    });
   },
 
   async markAsRead(notificationId: string): Promise<void> {
@@ -78,13 +73,12 @@ export const notificationsService = {
   },
 
   async getUnreadCount(userId: string): Promise<number> {
-    const supabase = getSupabaseClient();
-    const { count, error } = await supabase
-      .from("notifications")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("is_read", false);
-    if (error) return 0;
-    return count ?? 0;
+    if (!userId) return 0;
+    return withAbort((signal) =>
+      restCount(
+        `notifications?user_id=eq.${encodeURIComponent(userId)}&is_read=eq.false`,
+        signal
+      ).catch(() => 0)
+    );
   },
 };

@@ -65,7 +65,8 @@ src/
 │   ├── notifications/   ← YAPILACAK
 │   └── gamification/    ← YAPILACAK
 ├── lib/
-│   └── supabase/        ← client.ts, server.ts, middleware.ts, types.ts
+│   ├── db.ts            ← READ sorgu builder (dbFrom) — TÜM READLER BURADAN
+│   └── supabase/        ← client.ts, server.ts, middleware.ts, types.ts, rest.ts
 ├── hooks/               ← Paylaşılan custom hooks
 ├── store/               ← Global Zustand store'ları
 ├── types/               ← Global TypeScript tipleri (index.ts)
@@ -79,7 +80,7 @@ Her feature modülü içinde:
 features/<name>/
 ├── components/   ← UI bileşenler
 ├── hooks/        ← use-<feature>.ts
-├── services/     ← <feature>.service.ts  (Supabase erişimi burada)
+├── services/     ← <feature>.service.ts  (veritabanı erişimi burada)
 ├── store/        ← <feature>.store.ts (Zustand)
 ├── types/        ← index.ts
 └── validations/  ← Zod şemaları
@@ -316,6 +317,58 @@ npm run build      # Production build (her push öncesi çalıştır)
 npm run lint       # ESLint kontrolü
 npx tsc --noEmit   # TypeScript tip kontrolü
 ```
+
+---
+
+## ⚠️ Veritabanı Erişim Kuralı — KESİNLİKLE UYULMALI
+
+**Supabase JS SDK sayfa yenilemesinde auth state machine nedeniyle askıya alınıyor.**
+Tüm sayfalar sonsuz skeleton gösteriyor. Kök çözüm uygulandı:
+
+| İşlem | Kullan | KULLANMA |
+|---|---|---|
+| **READ** (SELECT) | `dbFrom(...)` — `src/lib/db.ts` | `supabase.from(...).select()` |
+| **WRITE** (INSERT/UPDATE/DELETE) | `getSupabaseClient()` | — |
+
+### READ — `src/lib/db.ts`
+
+```ts
+import { dbFrom, withAbort } from "@/lib/db";
+
+// Tek kayıt
+const profile = await dbFrom("profiles")
+  .eq("username", username)
+  .single();
+
+// Liste
+const posts = await dbFrom("posts")
+  .eq("author_id", userId)
+  .order("created_at")
+  .offset(page * 20)
+  .limit(20)
+  .execute();
+
+// 12s zaman aşımıyla
+const data = await withAbort((signal) =>
+  dbFrom("routes")
+    .eq("visibility", "public")
+    .signal(signal)
+    .execute()
+);
+```
+
+### WRITE — Supabase SDK
+
+```ts
+import { getSupabaseClient } from "@/lib/supabase/client";
+
+const supabase = getSupabaseClient();
+await supabase.from("posts").insert({ ... });
+await supabase.from("posts").update({ ... }).eq("id", id);
+await supabase.from("posts").delete().eq("id", id);
+```
+
+> **Yeni bir servis yazarken:** READ için `dbFrom`, WRITE için `getSupabaseClient()`. İkisini karıştırma.
 
 ---
 

@@ -1,4 +1,5 @@
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { restGet, withAbort } from "@/lib/supabase/rest";
 import type { UserProfile, Post, Route, UserBadge } from "@/types";
 import type { Database } from "@/lib/supabase/types";
 
@@ -102,64 +103,68 @@ export const profileService = {
     username: string,
     viewerId?: string
   ): Promise<(UserProfile & { is_following: boolean }) | null> {
-    const supabase = getSupabaseClient();
+    return withAbort(async (signal) => {
+      const profiles = await restGet<ProfileRow[]>(
+        `profiles?select=*&username=eq.${encodeURIComponent(username)}&limit=1`,
+        signal
+      );
+      if (!profiles[0]) return null;
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("username", username)
-      .single();
+      const profile = profiles[0];
+      let is_following = false;
 
-    if (error || !data) return null;
+      if (viewerId && viewerId !== profile.id) {
+        const follows = await restGet<{ follower_id: string }[]>(
+          `follows?select=follower_id&follower_id=eq.${encodeURIComponent(viewerId)}&following_id=eq.${encodeURIComponent(profile.id)}&limit=1`,
+          signal
+        ).catch(() => []);
+        is_following = follows.length > 0;
+      }
 
-    let is_following = false;
-    if (viewerId && viewerId !== data.id) {
-      const { data: followRow } = await supabase
-        .from("follows")
-        .select("follower_id")
-        .eq("follower_id", viewerId)
-        .eq("following_id", data.id)
-        .maybeSingle();
-      is_following = !!followRow;
-    }
-
-    return { ...buildProfile(data), is_following };
+      return { ...buildProfile(profile), is_following };
+    });
   },
 
   async getProfilePosts(userId: string, page: number): Promise<Post[]> {
-    const supabase = getSupabaseClient();
+    return withAbort(async (signal) => {
+      const offset = page * PAGE_SIZE;
+      const posts = await restGet<PostRow[]>(
+        `posts?select=*&author_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&offset=${offset}&limit=${PAGE_SIZE}`,
+        signal
+      );
+      if (posts.length === 0) return [];
 
-    const { data, error } = await supabase
-      .from("posts")
-      .select("*, author:profiles!posts_author_id_fkey(*)")
-      .eq("author_id", userId)
-      .order("created_at", { ascending: false })
-      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      const profiles = await restGet<ProfileRow[]>(
+        `profiles?select=*&id=eq.${encodeURIComponent(userId)}&limit=1`,
+        signal
+      );
+      const author = profiles[0];
+      if (!author) return [];
 
-    if (error) throw new Error(error.message);
-    if (!data || data.length === 0) return [];
-
-    return data.map((row) =>
-      buildPost(row as PostRow & { author: ProfileRow }, false, false)
-    );
+      return posts.map((row) =>
+        buildPost({ ...row, author }, false, false)
+      );
+    });
   },
 
   async getProfileRoutes(userId: string, page: number): Promise<Route[]> {
-    const supabase = getSupabaseClient();
+    return withAbort(async (signal) => {
+      const offset = page * PAGE_SIZE;
+      const routes = await restGet<RouteRow[]>(
+        `routes?select=*&author_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&offset=${offset}&limit=${PAGE_SIZE}`,
+        signal
+      );
+      if (routes.length === 0) return [];
 
-    const { data, error } = await supabase
-      .from("routes")
-      .select("*, author:profiles!routes_author_id_fkey(*)")
-      .eq("author_id", userId)
-      .order("created_at", { ascending: false })
-      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      const profiles = await restGet<ProfileRow[]>(
+        `profiles?select=*&id=eq.${encodeURIComponent(userId)}&limit=1`,
+        signal
+      );
+      const author = profiles[0];
+      if (!author) return [];
 
-    if (error) throw new Error(error.message);
-    if (!data || data.length === 0) return [];
-
-    return data.map((row) =>
-      buildRoute(row as RouteRow & { author: ProfileRow })
-    );
+      return routes.map((row) => buildRoute({ ...row, author }));
+    });
   },
 
   async getProfileBadges(userId: string): Promise<UserBadge[]> {
@@ -212,7 +217,6 @@ export const profileService = {
       is_private: data.is_private,
     };
 
-    // Remove undefined keys
     const cleanPayload = Object.fromEntries(
       Object.entries(updatePayload).filter(([, v]) => v !== undefined)
     ) as Database["public"]["Tables"]["profiles"]["Update"];

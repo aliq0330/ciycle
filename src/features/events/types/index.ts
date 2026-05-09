@@ -16,6 +16,7 @@ export interface EventFilters {
   page?: number;
   search?: string;
   status?: "upcoming" | "ongoing" | "completed" | "all";
+  clubId?: string;
 }
 
 export interface CreateEventPayload {
