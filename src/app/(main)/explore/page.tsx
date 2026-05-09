@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { TrendingUp, Users } from "lucide-react";
 import { SearchBar } from "@/features/explore/components/SearchBar";
@@ -10,16 +11,24 @@ import { UserSearchResult } from "@/features/explore/components/UserSearchResult
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSuggestedUsers } from "@/features/explore/hooks/use-explore";
 
+function SearchBarWithTag() {
+  const searchParams = useSearchParams();
+  const tagParam = searchParams.get("tag") ?? "";
+  return <SearchBar initialQuery={tagParam ? `#${tagParam}` : ""} />;
+}
+
 export default function ExplorePage() {
   return (
     <div className="space-y-6">
-      {/* Search */}
+      {/* Search — pre-filled from ?tag= URL param */}
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
       >
-        <SearchBar />
+        <Suspense fallback={<SearchBar />}>
+          <SearchBarWithTag />
+        </Suspense>
       </motion.div>
 
       {/* Trending Hashtags */}

@@ -1,55 +1,76 @@
 "use client";
 
 import Link from "next/link";
-import { TrendingUp, Users, Calendar, ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { TrendingUp, Users, Calendar, ChevronRight, UserPlus, Check } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarGroup } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useTrendingHashtags, useSuggestedUsers } from "@/features/explore/hooks/use-explore";
+import { useFollowUser, useUnfollowUser } from "@/features/profile/hooks/use-profile";
+import { useEvents } from "@/features/events/hooks/use-events";
+import { formatDate } from "@/lib/utils";
+import type { UserProfile } from "@/types";
 
-const TRENDING_TAGS = [
-  { tag: "#motogezi", count: "2.4K" },
-  { tag: "#enduro", count: "1.8K" },
-  { tag: "#bisiklet", count: "1.2K" },
-  { tag: "#karadeniz", count: "987" },
-  { tag: "#yamaha", count: "756" },
-];
+function SuggestedUserRow({ person }: { person: UserProfile & { is_following?: boolean } }) {
+  const [following, setFollowing] = useState(person.is_following ?? false);
+  const { mutate: follow, isPending: followPending } = useFollowUser();
+  const { mutate: unfollow, isPending: unfollowPending } = useUnfollowUser();
 
-const SUGGESTED_USERS = [
-  { name: "Ahmet Yılmaz", username: "ahmet_rider", avatar: null, vehicle: "🏍️" },
-  { name: "Zeynep Kaya", username: "zeynep_cyclist", avatar: null, vehicle: "🚴" },
-  { name: "Mert Demir", username: "mert_moto", avatar: null, vehicle: "🏍️" },
-];
+  const handleToggle = () => {
+    if (following) {
+      unfollow(
+        { followingId: person.id, username: person.username },
+        { onSuccess: () => setFollowing(false) }
+      );
+    } else {
+      follow(
+        { followingId: person.id, username: person.username },
+        { onSuccess: () => setFollowing(true) }
+      );
+    }
+  };
 
-const UPCOMING_EVENTS = [
-  {
-    id: "1",
-    title: "Karadeniz Turu",
-    date: "15 Haz",
-    participants: [
-      { name: "Ali", src: null },
-      { name: "Banu", src: null },
-      { name: "Cem", src: null },
-    ],
-    participantsCount: 48,
-  },
-  {
-    id: "2",
-    title: "Ankara Bisiklet Festivali",
-    date: "22 Haz",
-    participants: [
-      { name: "Dila", src: null },
-      { name: "Emre", src: null },
-    ],
-    participantsCount: 230,
-  },
-];
+  return (
+    <div className="flex items-center gap-3">
+      <Link href={`/profile/${person.username}`}>
+        <Avatar src={person.avatar_url} name={person.full_name} size="sm" verified={person.is_verified} />
+      </Link>
+      <div className="flex-1 min-w-0">
+        <Link href={`/profile/${person.username}`}>
+          <p className="text-sm font-medium text-[var(--color-text-primary)] truncate hover:text-[var(--color-primary)] transition-colors">
+            {person.full_name}
+          </p>
+        </Link>
+        <p className="text-xs text-[var(--color-text-muted)] truncate">@{person.username}</p>
+      </div>
+      <Button
+        variant={following ? "secondary" : "outline"}
+        size="xs"
+        loading={followPending || unfollowPending}
+        onClick={handleToggle}
+      >
+        {following ? <Check className="h-3 w-3" /> : <UserPlus className="h-3 w-3" />}
+        {following ? "Takipte" : "Takip"}
+      </Button>
+    </div>
+  );
+}
 
 export function RightPanel() {
+  const { data: hashtags, isLoading: hashLoading } = useTrendingHashtags();
+  const { data: suggestedUsers, isLoading: usersLoading } = useSuggestedUsers();
+  const { data: eventsData, isLoading: eventsLoading } = useEvents({ status: "upcoming" });
+
+  const topHashtags = hashtags?.slice(0, 5) ?? [];
+  const topUsers = suggestedUsers?.slice(0, 3) ?? [];
+  const upcomingEvents = eventsData?.pages[0]?.data?.slice(0, 2) ?? [];
+
   return (
     <aside className="hidden xl:flex flex-col w-[320px] flex-shrink-0 gap-4 py-6 pr-6">
-      {/* Trending */}
+      {/* Trending Hashtags */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -58,25 +79,41 @@ export function RightPanel() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-1">
-          {TRENDING_TAGS.map((item, i) => (
-            <Link
-              key={item.tag}
-              href={`/explore?tag=${item.tag.slice(1)}`}
-              className="flex items-center justify-between rounded-[8px] px-2 py-2 hover:bg-[var(--color-bg-elevated)] transition-colors group"
-            >
-              <div>
-                <p className="text-sm font-medium text-[var(--color-text-primary)] group-hover:text-[var(--color-primary)] transition-colors">
-                  {item.tag}
-                </p>
-                <p className="text-xs text-[var(--color-text-muted)]">{item.count} gönderi</p>
+          {hashLoading ? (
+            Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between px-2 py-2">
+                <div className="space-y-1">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-2.5 w-16" />
+                </div>
+                <Skeleton className="h-2.5 w-4" />
               </div>
-              <span className="text-xs text-[var(--color-text-muted)]">#{i + 1}</span>
-            </Link>
-          ))}
+            ))
+          ) : topHashtags.length === 0 ? (
+            <p className="text-xs text-[var(--color-text-muted)] text-center py-3">
+              Henüz trend yok
+            </p>
+          ) : (
+            topHashtags.map((item, i) => (
+              <Link
+                key={item.tag}
+                href={`/explore?tag=${encodeURIComponent(item.tag)}`}
+                className="flex items-center justify-between rounded-[8px] px-2 py-2 hover:bg-[var(--color-bg-elevated)] transition-colors group"
+              >
+                <div>
+                  <p className="text-sm font-medium text-[var(--color-text-primary)] group-hover:text-[var(--color-primary)] transition-colors">
+                    #{item.tag}
+                  </p>
+                  <p className="text-xs text-[var(--color-text-muted)]">{item.count} gönderi</p>
+                </div>
+                <span className="text-xs text-[var(--color-text-muted)]">#{i + 1}</span>
+              </Link>
+            ))
+          )}
         </CardContent>
       </Card>
 
-      {/* Suggested users */}
+      {/* Suggested Users */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -85,21 +122,29 @@ export function RightPanel() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {SUGGESTED_USERS.map((user) => (
-            <div key={user.username} className="flex items-center gap-3">
-              <Avatar src={user.avatar} name={user.name} size="sm" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
-                  {user.name} <span>{user.vehicle}</span>
-                </p>
-                <p className="text-xs text-[var(--color-text-muted)] truncate">@{user.username}</p>
+          {usersLoading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton className="h-8 w-8 rounded-full flex-shrink-0" />
+                <div className="flex-1 space-y-1">
+                  <Skeleton className="h-3 w-28" />
+                  <Skeleton className="h-2.5 w-20" />
+                </div>
+                <Skeleton className="h-7 w-16 rounded-[8px]" />
               </div>
-              <Button variant="outline" size="xs">Takip</Button>
-            </div>
-          ))}
+            ))
+          ) : topUsers.length === 0 ? (
+            <p className="text-xs text-[var(--color-text-muted)] text-center py-3">
+              Öneri bulunamadı
+            </p>
+          ) : (
+            topUsers.map((person) => (
+              <SuggestedUserRow key={person.id} person={person as UserProfile & { is_following?: boolean }} />
+            ))
+          )}
           <Separator />
           <Link
-            href="/explore/riders"
+            href="/explore"
             className="flex items-center justify-center gap-1 text-sm text-[var(--color-primary)] hover:underline py-1"
           >
             Daha fazla gör
@@ -108,7 +153,7 @@ export function RightPanel() {
         </CardContent>
       </Card>
 
-      {/* Upcoming events */}
+      {/* Upcoming Events */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -117,33 +162,51 @@ export function RightPanel() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {UPCOMING_EVENTS.map((event) => (
-            <Link
-              key={event.id}
-              href={`/events/${event.id}`}
-              className="flex items-start gap-3 group"
-            >
-              <div className="flex flex-col items-center justify-center w-10 h-10 rounded-[10px] bg-[var(--color-primary)]/15 flex-shrink-0">
-                <span className="text-[var(--color-primary)] text-[10px] font-bold leading-tight">
-                  {event.date.split(" ")[0]}
-                </span>
-                <span className="text-[var(--color-primary)] text-[9px] font-medium">
-                  {event.date.split(" ")[1]}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--color-text-primary)] group-hover:text-[var(--color-primary)] transition-colors truncate">
-                  {event.title}
-                </p>
-                <div className="flex items-center gap-2 mt-1">
-                  <AvatarGroup users={event.participants} max={3} size="xs" />
-                  <span className="text-xs text-[var(--color-text-muted)]">
-                    {event.participantsCount} katılımcı
-                  </span>
+          {eventsLoading ? (
+            Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="flex items-start gap-3">
+                <Skeleton className="h-10 w-10 rounded-[10px] flex-shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-2.5 w-24" />
                 </div>
               </div>
-            </Link>
-          ))}
+            ))
+          ) : upcomingEvents.length === 0 ? (
+            <p className="text-xs text-[var(--color-text-muted)] text-center py-3">
+              Yaklaşan etkinlik yok
+            </p>
+          ) : (
+            upcomingEvents.map((event) => {
+              const d = new Date(event.start_at);
+              const day = d.getDate();
+              const month = d.toLocaleString("tr-TR", { month: "short" });
+              return (
+                <Link
+                  key={event.id}
+                  href={`/events/${event.id}`}
+                  className="flex items-start gap-3 group"
+                >
+                  <div className="flex flex-col items-center justify-center w-10 h-10 rounded-[10px] bg-[var(--color-primary)]/15 flex-shrink-0">
+                    <span className="text-[var(--color-primary)] text-[10px] font-bold leading-tight">
+                      {day}
+                    </span>
+                    <span className="text-[var(--color-primary)] text-[9px] font-medium uppercase">
+                      {month}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-[var(--color-text-primary)] group-hover:text-[var(--color-primary)] transition-colors truncate">
+                      {event.title}
+                    </p>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                      {event.participants_count} katılımcı · {event.location_name}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })
+          )}
           <Separator />
           <Link
             href="/events"

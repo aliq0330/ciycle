@@ -8,11 +8,12 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useFollowUser, useUnfollowUser } from "@/features/profile/hooks/use-profile";
 import { ROUTES } from "@/config/app";
 import type { UserProfile } from "@/types";
 
 interface UserSearchResultProps {
-  user: UserProfile;
+  user: UserProfile & { is_following?: boolean };
   index?: number;
 }
 
@@ -23,17 +24,19 @@ const VEHICLE_LABEL: Record<UserProfile["vehicle_type"], string> = {
 };
 
 export function UserSearchResult({ user, index = 0 }: UserSearchResultProps) {
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [isPending, setIsPending] = useState(false);
+  const [following, setFollowing] = useState(user.is_following ?? false);
+  const { mutate: follow, isPending: followPending } = useFollowUser();
+  const { mutate: unfollow, isPending: unfollowPending } = useUnfollowUser();
+  const isPending = followPending || unfollowPending;
 
-  const handleFollow = async (e: React.MouseEvent) => {
+  const handleFollow = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsPending(true);
-    // Optimistic toggle (real mutation would go through a hook)
-    await new Promise((r) => setTimeout(r, 400));
-    setIsFollowing((prev) => !prev);
-    setIsPending(false);
+    if (following) {
+      unfollow({ followingId: user.id, username: user.username }, { onSuccess: () => setFollowing(false) });
+    } else {
+      follow({ followingId: user.id, username: user.username }, { onSuccess: () => setFollowing(true) });
+    }
   };
 
   return (
@@ -85,12 +88,12 @@ export function UserSearchResult({ user, index = 0 }: UserSearchResultProps) {
 
           <Button
             size="xs"
-            variant={isFollowing ? "secondary" : "default"}
+            variant={following ? "secondary" : "default"}
             loading={isPending}
             onClick={handleFollow}
             className="min-w-[76px]"
           >
-            {isFollowing ? (
+            {following ? (
               <>
                 <UserCheck className="h-3 w-3" />
                 Takip Ediliyor

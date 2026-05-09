@@ -173,6 +173,52 @@ export const feedService = {
     return true;
   },
 
+  async getClubPosts({
+    clubId,
+    page = 0,
+    limit = 20,
+  }: {
+    clubId: string;
+    page?: number;
+    limit?: number;
+  }): Promise<Post[]> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12_000);
+
+    try {
+      const offset = page * limit;
+      const posts = await restFetch<PostRow[]>(
+        `posts?select=*&club_id=eq.${encodeURIComponent(clubId)}&order=created_at.desc&offset=${offset}&limit=${limit}`,
+        controller.signal
+      );
+
+      if (posts.length === 0) return [];
+
+      const authorIds = Array.from(new Set(posts.map((p) => p.author_id)));
+      const inList = (ids: string[]) =>
+        `(${ids.map((id) => `"${id}"`).join(",")})`;
+
+      const profiles = await restFetch<ProfileRow[]>(
+        `profiles?select=*&id=in.${inList(authorIds)}`,
+        controller.signal
+      );
+
+      const profileMap = new Map<string, ProfileRow>(
+        profiles.map((p) => [p.id, p])
+      );
+
+      return posts.map((row) =>
+        buildPost(
+          { ...row, author: profileMap.get(row.author_id) ?? null },
+          false,
+          false
+        )
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+  },
+
   async deletePost(postId: string): Promise<void> {
     const supabase = getSupabaseClient();
     const { error } = await supabase.from("posts").delete().eq("id", postId);

@@ -2,45 +2,49 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Compass, Map, Plus, Bell, User, Menu } from "lucide-react";
+import { Home, Compass, Plus, Bell, Menu } from "lucide-react";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useSidebarStore } from "@/store/sidebar.store";
+import { useNotificationsStore } from "@/features/notifications/store/notifications.store";
+import { useConversations } from "@/features/chat/hooks/use-chat";
+import { useCreatePostStore } from "@/store/create-post.store";
 import { ROUTES } from "@/config/app";
 
 export function BottomNav() {
   const pathname = usePathname();
   const { user } = useAuth();
   const toggle = useSidebarStore((s) => s.toggle);
+  const notifUnread = useNotificationsStore((s) => s.unreadCount);
+  const { data: conversations } = useConversations();
+  const msgUnread = conversations?.reduce((sum, c) => sum + (c.unread_count ?? 0), 0) ?? 0;
+  const openCreatePost = useCreatePostStore((s) => s.open);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden">
-      {/* Blur + border */}
       <div className="bg-[var(--color-bg-surface)]/80 backdrop-blur-xl border-t border-[var(--color-border)]/60 px-2 pb-safe">
         <div className="flex items-center justify-around h-16 max-w-md mx-auto">
 
-          {/* Akış */}
           <NavItem href={ROUTES.feed} icon={Home} label="Akış" pathname={pathname} />
 
-          {/* Keşfet */}
           <NavItem href={ROUTES.explore} icon={Compass} label="Keşfet" pathname={pathname} />
 
-          {/* FAB — ortada */}
-          <Link
-            href={ROUTES.feed}
-            className="flex h-13 w-13 items-center justify-center rounded-full bg-[var(--color-primary)] text-white shadow-lg shadow-[var(--color-primary)]/40 active:scale-90 transition-transform duration-150 -mt-4"
+          {/* FAB */}
+          <button
+            onClick={openCreatePost}
+            className="flex items-center justify-center rounded-full bg-[var(--color-primary)] text-white shadow-lg shadow-[var(--color-primary)]/40 active:scale-90 transition-transform duration-150 -mt-4"
             style={{ height: 52, width: 52 }}
           >
             <Plus className="h-6 w-6" strokeWidth={2.5} />
-          </Link>
+          </button>
 
-          {/* Bildirimler */}
-          <NavItem href={ROUTES.notifications} icon={Bell} label="Bildirimler" pathname={pathname} />
+          <NavItem href={ROUTES.notifications} icon={Bell} label="Bildirimler" pathname={pathname} badge={notifUnread} />
 
-          {/* Menü (sidebar aç) */}
+          {/* Menu / avatar */}
           <button
             onClick={toggle}
-            className="flex flex-col items-center gap-1 py-1 px-3 rounded-[10px] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+            className="relative flex flex-col items-center gap-1 py-1 px-3 rounded-[10px] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
           >
             {user?.avatar_url ? (
               <div className="h-6 w-6 rounded-full overflow-hidden ring-2 ring-[var(--color-border)]">
@@ -49,6 +53,15 @@ export function BottomNav() {
               </div>
             ) : (
               <Menu className="h-6 w-6" />
+            )}
+            {msgUnread > 0 && (
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="absolute top-0.5 right-2 h-4 w-4 flex items-center justify-center rounded-full bg-[var(--color-danger)] text-white text-[9px] font-bold"
+              >
+                {msgUnread > 9 ? "9+" : msgUnread}
+              </motion.span>
             )}
             <span className="text-[10px] font-medium">Menü</span>
           </button>
@@ -87,9 +100,13 @@ function NavItem({
       <div className="relative">
         <Icon className="h-6 w-6" />
         {badge && badge > 0 ? (
-          <span className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center rounded-full bg-[var(--color-danger)] text-white text-[9px] font-bold">
+          <motion.span
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center rounded-full bg-[var(--color-danger)] text-white text-[9px] font-bold"
+          >
             {badge > 9 ? "9+" : badge}
-          </span>
+          </motion.span>
         ) : null}
       </div>
       <span className="text-[10px] font-medium">{label}</span>
