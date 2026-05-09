@@ -11,6 +11,7 @@ export function useRoutes(filters?: {
   difficulty?: Route["difficulty"];
   roadType?: Route["road_type"];
   search?: string;
+  clubId?: string;
 }) {
   const user = useAuthStore((s) => s.user);
 
@@ -39,9 +40,6 @@ export function useRoute(id: string) {
     queryKey: [...ROUTES_QUERY_KEY, id],
     queryFn: () => routesService.getRoute(id, user?.id),
     enabled: !!id,
-    networkMode: "always",
-    retry: 2,
-    retryDelay: 1000,
   });
 }
 

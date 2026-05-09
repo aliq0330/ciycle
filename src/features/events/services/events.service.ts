@@ -1,13 +1,18 @@
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { restGet, inList, withAbort } from "@/lib/supabase/rest";
+import { restGet, restCount, inList, withAbort } from "@/lib/supabase/rest";
 import type { Event, PaginatedResponse, UserProfile } from "@/types";
 import type { Database } from "@/lib/supabase/types";
 import type { CreateEventPayload, EventFilters } from "../types";
 
 type EventRow = Database["public"]["Tables"]["events"]["Row"];
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+type EventParticipantRow = Database["public"]["Tables"]["event_participants"]["Row"];
 
 const PAGE_SIZE = 12;
+
+function buildProfile(row: ProfileRow): UserProfile {
+  return row as unknown as UserProfile;
+}
 
 function buildEvent(
   row: EventRow & { organizer: ProfileRow | null },
@@ -57,10 +62,14 @@ export const eventsService = {
     page = 0,
     search,
     status,
+    clubId,
   }: EventFilters): Promise<PaginatedResponse<Event>> {
     return withAbort(async (signal) => {
       const offset = page * PAGE_SIZE;
       let qs = `events?select=*&order=start_at.asc&offset=${offset}&limit=${PAGE_SIZE}`;
+      if (clubId) {
+        qs += `&club_id=eq.${encodeURIComponent(clubId)}`;
+      }
       qs += statusFilter(status);
       if (search) qs += `&title=ilike.*${encodeURIComponent(search)}*`;
 
@@ -182,20 +191,42 @@ export const eventsService = {
   },
 
   async joinEvent(eventId: string, userId: string): Promise<void> {
-    void eventId;
-    void userId;
+    const supabase = getSupabaseClient();
+    const { error } = await supabase
+      .from("event_participants")
+      .upsert({ event_id: eventId, user_id: userId, status: "going" });
+    if (error) throw new Error(error.message);
   },
 
   async leaveEvent(eventId: string, userId: string): Promise<void> {
-    void eventId;
-    void userId;
+    const supabase = getSupabaseClient();
+    const { error } = await supabase
+      .from("event_participants")
+      .delete()
+      .eq("event_id", eventId)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
   },
 
-  async getEventParticipants(_eventId: string): Promise<UserProfile[]> {
-    return [];
+  async getEventParticipants(eventId: string): Promise<UserProfile[]> {
+    const rows = await restGet<EventParticipantRow[]>(
+      `event_participants?event_id=eq.${eventId}&select=user_id`
+    ).catch(() => [] as EventParticipantRow[]);
+
+    if (rows.length === 0) return [];
+
+    const ids = rows.map((r: EventParticipantRow) => r.user_id).join(",");
+    const profiles = await restGet<ProfileRow[]>(
+      `profiles?id=in.(${ids})&select=*`
+    ).catch(() => [] as ProfileRow[]);
+
+    return profiles.map(buildProfile);
   },
 
-  async checkIsJoined(_eventId: string, _userId: string): Promise<boolean> {
-    return false;
+  async checkIsJoined(eventId: string, userId: string): Promise<boolean> {
+    const count = await restCount(
+      `event_participants?event_id=eq.${eventId}&user_id=eq.${userId}`
+    ).catch(() => 0);
+    return count > 0;
   },
 };

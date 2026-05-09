@@ -13,6 +13,7 @@ export const routesService = {
     difficulty,
     roadType,
     search,
+    clubId,
   }: {
     userId?: string;
     page?: number;
@@ -20,10 +21,16 @@ export const routesService = {
     difficulty?: Route["difficulty"];
     roadType?: Route["road_type"];
     search?: string;
+    clubId?: string;
   }): Promise<PaginatedResponse<Route>> {
     return withAbort(async (signal) => {
       const offset = page * limit;
-      let qs = `routes?select=*&visibility=eq.public&order=created_at.desc&offset=${offset}&limit=${limit}`;
+      let qs = `routes?select=*&order=created_at.desc&offset=${offset}&limit=${limit}`;
+      if (clubId) {
+        qs += `&club_id=eq.${encodeURIComponent(clubId)}`;
+      } else {
+        qs += `&visibility=eq.public`;
+      }
       if (difficulty) qs += `&difficulty=eq.${encodeURIComponent(difficulty)}`;
       if (roadType) qs += `&road_type=eq.${encodeURIComponent(roadType)}`;
       if (search) qs += `&title=ilike.*${encodeURIComponent(search)}*`;
@@ -165,7 +172,6 @@ export const routesService = {
     let elevLoss = 0;
     let minEle = Infinity;
     let maxEle = -Infinity;
-
     const elevProfile: ElevationPoint[] = [];
 
     for (let i = 0; i < points.length; i++) {
@@ -177,7 +183,6 @@ export const routesService = {
         const prev = points[i - 1];
         const d = haversineDistance(prev.lat, prev.lng, p.lat, p.lng);
         distance += d;
-
         const diff = p.ele - prev.ele;
         if (diff > 0) elevGain += diff;
         else elevLoss += Math.abs(diff);

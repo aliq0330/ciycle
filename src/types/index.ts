@@ -1,10 +1,10 @@
-/* ─── Shared primitive types ──────────────────────────────── */
+/* ─── Shared primitive types ────────────────────────────── */
 
 export type Id = string;
 export type Timestamp = string;
 export type Nullable<T> = T | null;
 
-/* ─── User & Profile ──────────────────────────────────────── */
+/* ─── User & Profile ────────────────────────────────── */
 
 export type UserRole = "user" | "moderator" | "admin";
 export type VehicleType = "motorcycle" | "bicycle" | "both";
@@ -41,7 +41,7 @@ export interface FollowRelation {
   created_at: Timestamp;
 }
 
-/* ─── Post / Feed ─────────────────────────────────────────── */
+/* ─── Post / Feed ───────────────────────────────────── */
 
 export type PostType = "text" | "image" | "video" | "route_share" | "event_share";
 
@@ -88,7 +88,7 @@ export interface Reaction {
   emoji: string;
 }
 
-/* ─── Route ───────────────────────────────────────────────── */
+/* ─── Route ─────────────────────────────────────────── */
 
 export type RoadType = "asphalt" | "gravel" | "offroad" | "mixed";
 export type DifficultyLevel = "easy" | "moderate" | "hard" | "expert";
@@ -150,7 +150,7 @@ export interface Route {
   updated_at: Timestamp;
 }
 
-/* ─── Event ───────────────────────────────────────────────── */
+/* ─── Event ─────────────────────────────────────────── */
 
 export type EventStatus = "draft" | "published" | "ongoing" | "completed" | "cancelled";
 export type EventVisibility = "public" | "private" | "invite_only";
@@ -177,7 +177,7 @@ export interface Event {
   created_at: Timestamp;
 }
 
-/* ─── Club ────────────────────────────────────────────────── */
+/* ─── Club ──────────────────────────────────────────── */
 
 export type ClubRole = "founder" | "admin" | "moderator" | "ride_captain" | "member";
 export type ClubVisibility = "public" | "private" | "invite_only";
@@ -209,7 +209,7 @@ export interface ClubMember {
   joined_at: Timestamp;
 }
 
-/* ─── Message / Chat ──────────────────────────────────────── */
+/* ─── Message / Chat ────────────────────────────────── */
 
 export type MessageType = "text" | "image" | "voice" | "location" | "route_share";
 
@@ -237,7 +237,7 @@ export interface Message {
   created_at: Timestamp;
 }
 
-/* ─── Notification ────────────────────────────────────────── */
+/* ─── Notification ───────────────────────────────────── */
 
 export type NotificationType =
   | "like"
@@ -262,7 +262,29 @@ export interface Notification {
   created_at: Timestamp;
 }
 
-/* ─── Gamification ────────────────────────────────────────── */
+/* ─── Vehicle / Garage ──────────────────────────────── */
+
+export type VehicleCategory = "motorcycle" | "bicycle";
+
+export interface Vehicle {
+  id: Id;
+  user_id: Id;
+  make: string;
+  model: string;
+  year: number;
+  type: VehicleCategory;
+  color: Nullable<string>;
+  plate_number: Nullable<string>;
+  odometer_km: number;
+  engine_cc: Nullable<number>;
+  notes: Nullable<string>;
+  cover_image_url: Nullable<string>;
+  is_primary: boolean;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+/* ─── Gamification ───────────────────────────────────── */
 
 export type BadgeCategory = "distance" | "elevation" | "social" | "events" | "special";
 
@@ -281,7 +303,7 @@ export interface UserBadge {
   earned_at: Timestamp;
 }
 
-/* ─── API helpers ─────────────────────────────────────────── */
+/* ─── API helpers ─────────────────────────────────────── */
 
 export interface PaginatedResponse<T> {
   data: T[];
@@ -297,7 +319,7 @@ export interface ApiError {
   status: number;
 }
 
-/* ─── UI helpers ──────────────────────────────────────────── */
+/* ─── UI helpers ───────────────────────────────────────── */
 
 export type Size = "xs" | "sm" | "md" | "lg" | "xl";
 export type Variant = "default" | "primary" | "secondary" | "ghost" | "danger" | "outline";
