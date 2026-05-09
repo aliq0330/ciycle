@@ -13,6 +13,8 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useUpdateProfile } from "@/features/profile/hooks/use-profile";
+import { useToast } from "@/hooks/use-toast";
 
 const SETTINGS_SECTIONS = [
   { id: "profile", icon: User, label: "Profil" },
@@ -100,9 +102,14 @@ function ProfileSettings({ user }: { user: ReturnType<typeof useAuth>["user"] })
       website: user?.website ?? "",
     },
   });
+  const { mutate: updateProfile, isPending } = useUpdateProfile();
+  const { toast } = useToast();
 
   const onSubmit = (data: ProfileInput) => {
-    console.log("update profile", data);
+    updateProfile(data, {
+      onSuccess: () => toast({ title: "Profil güncellendi", variant: "success" }),
+      onError: () => toast({ title: "Güncelleme başarısız", variant: "error" }),
+    });
   };
 
   return (
@@ -162,7 +169,7 @@ function ProfileSettings({ user }: { user: ReturnType<typeof useAuth>["user"] })
             {errors.bio && <p className="text-xs text-[var(--color-danger)]">{errors.bio.message}</p>}
           </div>
 
-          <Button type="submit" disabled={!isDirty}>Kaydet</Button>
+          <Button type="submit" disabled={!isDirty || isPending} loading={isPending}>Kaydet</Button>
         </form>
       </CardContent>
     </Card>
