@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useSidebarStore } from "@/store/sidebar.store";
 import { ROUTES } from "@/config/app";
@@ -136,6 +137,7 @@ export function Sidebar() {
             <Settings className="h-5 w-5" />
             <span>Ayarlar</span>
           </Link>
+          <ThemeToggle />
         </div>
       </nav>
 
