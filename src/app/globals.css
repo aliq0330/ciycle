@@ -59,6 +59,54 @@
   --duration-slow:   400ms;
 }
 
+/* ─── Light Theme Overrides ────────────────────────────── */
+
+[data-theme="light"] {
+  --color-bg-base:      #F2F5F3;
+  --color-bg-surface:   #E8ECEA;
+  --color-bg-elevated:  #DDE4DF;
+  --color-bg-hover:     #D3DDD6;
+  --color-bg-subtle:    #C7D4CA;
+
+  --color-primary:      #2E8F5A;
+  --color-primary-hover:#267A4C;
+  --color-secondary:    #267A4C;
+  --color-accent:       #1A5C3A;
+  --color-accent-muted: #0F3D24;
+
+  --color-text-primary:   #0D1A12;
+  --color-text-secondary: #3A5045;
+  --color-text-muted:     #5E7568;
+  --color-text-disabled:  #8EA89A;
+
+  --color-border:         #C5D3C9;
+  --color-border-subtle:  #D3DDD6;
+
+  --color-danger:         #C0392B;
+  --color-warning:        #B8820A;
+  --color-success:        #2E8F5A;
+  --color-info:           #1A6FA0;
+
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md:  0 4px 16px rgba(0,0,0,0.10);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,0.14);
+  --shadow-glow: 0 0 24px rgba(46,143,90,0.20);
+}
+
+[data-theme="light"] .glass {
+  background: rgba(232, 236, 234, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(46, 143, 90, 0.15);
+}
+
+[data-theme="light"] .glass-strong {
+  background: rgba(242, 245, 243, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(46, 143, 90, 0.18);
+}
+
 /* ─── Base Styles ──────────────────────────────────────── */
 
 *, *::before, *::after {
