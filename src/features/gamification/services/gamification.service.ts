@@ -1,4 +1,3 @@
-import { getSupabaseClient } from "@/lib/supabase/client";
 import { restGet, withAbort } from "@/lib/supabase/rest";
 import type { UserProfile, UserBadge } from "@/types";
 import type { Database } from "@/lib/supabase/types";
@@ -78,25 +77,23 @@ export const gamificationService = {
   },
 
   async getUserBadges(userId: string): Promise<UserBadge[]> {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from("user_badges" as never)
-      .select("*, badge:badges(*)")
-      .eq("user_id", userId)
-      .order("earned_at", { ascending: false });
-    if (error) return [];
-    return (data ?? []) as UserBadge[];
+    return withAbort(async (signal) => {
+      type UserBadgeRow = { id: string; user_id: string; earned_at: string; badge: Record<string, unknown> };
+      const rows = await restGet<UserBadgeRow[]>(
+        `user_badges?select=*,badge:badges(*)&user_id=eq.${encodeURIComponent(userId)}&order=earned_at.desc`,
+        signal
+      ).catch(() => [] as UserBadgeRow[]);
+      return rows as unknown as UserBadge[];
+    });
   },
 
   async getUserXPHistory(userId: string): Promise<XPEvent[]> {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from("xp_events" as never)
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(50);
-    if (error) return [];
-    return (data ?? []) as XPEvent[];
+    return withAbort(async (signal) => {
+      const rows = await restGet<XPEvent[]>(
+        `xp_events?select=*&user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=50`,
+        signal
+      ).catch(() => [] as XPEvent[]);
+      return rows;
+    });
   },
 };

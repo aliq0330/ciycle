@@ -1,4 +1,5 @@
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { restGet, restCount, inList, withAbort } from "@/lib/supabase/rest";
 import type { Club, ClubMember, PaginatedResponse } from "@/types";
 import type { Database } from "@/lib/supabase/types";
 import type { CreateClubInput } from "../validations";
@@ -58,33 +59,36 @@ export const clubsService = {
     search,
     vehicleType,
   }: ClubFilters): Promise<PaginatedResponse<Club>> {
-    const supabase = getSupabaseClient();
-    const from = page * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
+    return withAbort(async (signal) => {
+      const offset = page * PAGE_SIZE;
+      let qs = `clubs?select=*&visibility=neq.private&order=member_count.desc&offset=${offset}&limit=${PAGE_SIZE}`;
+      if (search) qs += `&name=ilike.*${encodeURIComponent(search)}*`;
+      if (vehicleType && vehicleType !== "all") qs += `&vehicle_type=eq.${vehicleType}`;
 
-    let query = supabase
-      .from("clubs")
-      .select("*", { count: "exact" })
-      .order("member_count", { ascending: false })
-      .range(from, to);
+      const [clubs, total] = await Promise.all([
+        restGet<ClubRow[]>(qs, signal),
+        restCount(qs.replace(`&offset=${offset}&limit=${PAGE_SIZE}`, ""), signal),
+      ]);
 
-    if (search) query = query.ilike("name", `%${search}%`);
-    if (vehicleType && vehicleType !== "all") query = query.eq("vehicle_type", vehicleType);
-
-    const { data, error, count } = await query;
-    if (error) throw new Error(error.message);
-
-    const total = count ?? 0;
-    const clubs = (data ?? []).map((row) => buildClub(row as ClubRow, false, null));
-
-    return { data: clubs, total, page, limit: PAGE_SIZE, has_more: from + clubs.length < total };
+      return {
+        data: clubs.map((row) => buildClub(row, false, null)),
+        total,
+        page,
+        limit: PAGE_SIZE,
+        has_more: offset + clubs.length < total,
+      };
+    });
   },
 
   async getClub(slug: string): Promise<Club> {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase.from("clubs").select("*").eq("slug", slug).single();
-    if (error) throw new Error(error.message);
-    return buildClub(data as ClubRow, false, null);
+    return withAbort(async (signal) => {
+      const rows = await restGet<ClubRow[]>(
+        `clubs?select=*&slug=eq.${encodeURIComponent(slug)}&limit=1`,
+        signal
+      );
+      if (!rows[0]) throw new Error("Club not found");
+      return buildClub(rows[0], false, null);
+    });
   },
 
   async createClub(payload: CreateClubInput & { founder_id: string }): Promise<Club> {
@@ -141,16 +145,27 @@ export const clubsService = {
   },
 
   async getClubMembers(clubId: string): Promise<ClubMember[]> {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from("club_members")
-      .select("*, profile:profiles!club_members_user_id_fkey(*)")
-      .eq("club_id", clubId)
-      .order("joined_at", { ascending: true });
-    if (error) throw new Error(error.message);
-    return (data ?? []).map((row) =>
-      buildMember((row as unknown) as ClubMemberRow & { profile: ProfileRow })
-    );
+    return withAbort(async (signal) => {
+      type MemberRowRaw = ClubMemberRow & { user_id: string };
+      const members = await restGet<MemberRowRaw[]>(
+        `club_members?select=*&club_id=eq.${encodeURIComponent(clubId)}&order=joined_at.asc`,
+        signal
+      );
+      if (members.length === 0) return [];
+
+      const userIds = members.map((m) => m.user_id);
+      const profiles = await restGet<ProfileRow[]>(
+        `profiles?select=*&id=in.${inList(userIds)}`,
+        signal
+      );
+      const profileMap = new Map(profiles.map((p) => [p.id, p]));
+
+      return members
+        .filter((m) => profileMap.has(m.user_id))
+        .map((m) =>
+          buildMember({ ...m, profile: profileMap.get(m.user_id)! })
+        );
+    });
   },
 
   async updateMemberRole(clubId: string, userId: string, role: ClubMember["role"]): Promise<void> {
@@ -174,37 +189,37 @@ export const clubsService = {
   },
 
   async getMyMembership(clubId: string, userId: string): Promise<{ is_member: boolean; role: Club["my_role"] }> {
-    const supabase = getSupabaseClient();
-    const { data } = await supabase
-      .from("club_members")
-      .select("role")
-      .eq("club_id", clubId)
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (!data) return { is_member: false, role: null };
-    return { is_member: true, role: data.role as Club["my_role"] };
+    return withAbort(async (signal) => {
+      const rows = await restGet<{ role: string }[]>(
+        `club_members?select=role&club_id=eq.${encodeURIComponent(clubId)}&user_id=eq.${encodeURIComponent(userId)}&limit=1`,
+        signal
+      ).catch(() => [] as { role: string }[]);
+      if (!rows[0]) return { is_member: false, role: null };
+      return { is_member: true, role: rows[0].role as Club["my_role"] };
+    });
   },
 
   async getUserClubs(userId: string): Promise<Club[]> {
     if (!userId) return [];
-    const supabase = getSupabaseClient();
+    return withAbort(async (signal) => {
+      const memberships = await restGet<{ club_id: string; role: string }[]>(
+        `club_members?select=club_id,role&user_id=eq.${encodeURIComponent(userId)}&order=joined_at.desc`,
+        signal
+      ).catch(() => [] as { club_id: string; role: string }[]);
 
-    const { data: memberships, error: mErr } = await supabase
-      .from("club_members")
-      .select("club_id, role")
-      .eq("user_id", userId)
-      .order("joined_at", { ascending: false });
+      if (memberships.length === 0) return [];
 
-    if (mErr || !memberships || memberships.length === 0) return [];
+      const clubIds = memberships.map((m) => m.club_id);
+      const roleMap = new Map(memberships.map((m) => [m.club_id, m.role as Club["my_role"]]));
 
-    const clubIds = memberships.map((m) => m.club_id);
-    const roleMap = new Map(memberships.map((m) => [m.club_id, m.role as Club["my_role"]]));
+      const clubs = await restGet<ClubRow[]>(
+        `clubs?select=*&id=in.${inList(clubIds)}`,
+        signal
+      ).catch(() => [] as ClubRow[]);
 
-    const { data: clubs, error: cErr } = await supabase.from("clubs").select("*").in("id", clubIds);
-    if (cErr) return [];
-
-    return (clubs ?? []).map((row) =>
-      buildClub(row as ClubRow, true, roleMap.get(row.id) ?? "member")
-    );
+      return clubs.map((row) =>
+        buildClub(row, true, roleMap.get(row.id) ?? "member")
+      );
+    });
   },
 };

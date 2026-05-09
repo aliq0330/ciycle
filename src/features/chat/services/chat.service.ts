@@ -1,4 +1,5 @@
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { restGet, inList, withAbort } from "@/lib/supabase/rest";
 import type { Conversation, Message, UserProfile } from "@/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
@@ -44,86 +45,108 @@ function buildConversation(
 
 export const chatService = {
   async getConversations(userId: string): Promise<Conversation[]> {
-    const supabase = getSupabaseClient();
+    return withAbort(async (signal) => {
+      // 1. Get conversation IDs this user belongs to
+      const participations = await restGet<{ conversation_id: string }[]>(
+        `conversation_participants?select=conversation_id&user_id=eq.${encodeURIComponent(userId)}`,
+        signal
+      ).catch(() => [] as { conversation_id: string }[]);
 
-    const { data, error } = await supabase
-      .from("conversation_participants")
-      .select(
-        `conversation_id,
-         conversations!inner(
-           id, type, name, avatar_url, updated_at,
-           conversation_participants(
-             user_id,
-             profiles!conversation_participants_user_id_fkey(*)
-           ),
-           messages(
-             id, conversation_id, sender_id, type, content, media_url,
-             is_read, reactions, created_at,
-             sender:profiles!messages_sender_id_fkey(*)
-           )
-         )`
-      )
-      .eq("user_id", userId)
-      .order("updated_at", { referencedTable: "conversations", ascending: false });
+      if (participations.length === 0) return [];
+      const convIds = participations.map((p) => p.conversation_id);
 
-    if (error) throw new Error(error.message);
-    if (!data) return [];
+      // 2. Fetch conversations, all participants, last messages and unread counts in parallel
+      const [conversations, allParticipants, lastMessages, unreadRows] = await Promise.all([
+        restGet<Record<string, unknown>[]>(
+          `conversations?select=*&id=in.${inList(convIds)}&order=updated_at.desc`,
+          signal
+        ),
+        restGet<{ conversation_id: string; user_id: string }[]>(
+          `conversation_participants?select=conversation_id,user_id&conversation_id=in.${inList(convIds)}`,
+          signal
+        ),
+        restGet<Record<string, unknown>[]>(
+          `messages?select=*&conversation_id=in.${inList(convIds)}&order=created_at.desc&limit=${convIds.length * 5}`,
+          signal
+        ).catch(() => [] as Record<string, unknown>[]),
+        restGet<{ conversation_id: string }[]>(
+          `messages?select=conversation_id&conversation_id=in.${inList(convIds)}&is_read=eq.false&sender_id=neq.${encodeURIComponent(userId)}`,
+          signal
+        ).catch(() => [] as { conversation_id: string }[]),
+      ]);
 
-    // Count unread per conversation
-    const conversationIds = data.map(
-      (d) => (d as Record<string, unknown>).conversation_id as string
-    );
-    const { data: unreadData } = await supabase
-      .from("messages")
-      .select("conversation_id")
-      .in("conversation_id", conversationIds)
-      .eq("is_read", false)
-      .neq("sender_id", userId);
+      // 3. Fetch unique profile for each participant
+      const allUserIds = Array.from(new Set(allParticipants.map((p) => p.user_id)));
+      const profiles = allUserIds.length > 0
+        ? await restGet<Record<string, unknown>[]>(
+            `profiles?select=*&id=in.${inList(allUserIds)}`,
+            signal
+          ).catch(() => [] as Record<string, unknown>[])
+        : [];
 
-    const unreadCounts: Record<string, number> = {};
-    for (const row of unreadData ?? []) {
-      const cid = row.conversation_id;
-      unreadCounts[cid] = (unreadCounts[cid] ?? 0) + 1;
-    }
+      const profileMap = new Map(profiles.map((p) => [p.id as string, p]));
 
-    return data.map((item) => {
-      const conv = (item as Record<string, unknown>).conversations as Record<string, unknown>;
-      const participantsRaw = (
-        conv.conversation_participants as Array<Record<string, unknown>>
-      ) ?? [];
-      const participants = participantsRaw.map((p) =>
-        buildProfile(p.profiles as Record<string, unknown>)
-      );
+      // 4. Group participants and last messages per conversation
+      const participantsByConv = new Map<string, UserProfile[]>();
+      for (const p of allParticipants) {
+        const prof = profileMap.get(p.user_id);
+        if (prof) {
+          const arr = participantsByConv.get(p.conversation_id) ?? [];
+          arr.push(buildProfile(prof));
+          participantsByConv.set(p.conversation_id, arr);
+        }
+      }
 
-      const messagesRaw = (conv.messages as Array<Record<string, unknown>>) ?? [];
-      const sorted = [...messagesRaw].sort(
-        (a, b) =>
-          new Date(b.created_at as string).getTime() -
-          new Date(a.created_at as string).getTime()
-      );
-      const lastMessage = sorted.length > 0 ? buildMessage(sorted[0]) : null;
+      const lastMsgByConv = new Map<string, Record<string, unknown>>();
+      for (const msg of lastMessages) {
+        const cid = msg.conversation_id as string;
+        if (!lastMsgByConv.has(cid)) {
+          const sender = profileMap.get(msg.sender_id as string);
+          lastMsgByConv.set(cid, { ...msg, sender: sender ?? null });
+        }
+      }
 
-      return buildConversation(
-        { ...conv, unread_count: unreadCounts[conv.id as string] ?? 0 },
-        participants,
-        lastMessage
-      );
+      const unreadCounts: Record<string, number> = {};
+      for (const row of unreadRows) {
+        const cid = row.conversation_id;
+        unreadCounts[cid] = (unreadCounts[cid] ?? 0) + 1;
+      }
+
+      return conversations.map((conv) => {
+        const cid = conv.id as string;
+        const lastMsg = lastMsgByConv.get(cid);
+        return buildConversation(
+          { ...conv, unread_count: unreadCounts[cid] ?? 0 },
+          participantsByConv.get(cid) ?? [],
+          lastMsg ? buildMessage(lastMsg) : null
+        );
+      });
     });
   },
 
   async getMessages(conversationId: string, page = 0): Promise<Message[]> {
-    const supabase = getSupabaseClient();
-    const limit = 30;
+    return withAbort(async (signal) => {
+      const limit = 30;
+      const offset = page * limit;
 
-    const { data, error } = await supabase
-      .from("messages")
-      .select("*, sender:profiles!messages_sender_id_fkey(*)")
-      .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: false })
-      .range(page * limit, (page + 1) * limit - 1);
+      const rows = await restGet<Record<string, unknown>[]>(
+        `messages?select=*&conversation_id=eq.${encodeURIComponent(conversationId)}&order=created_at.desc&offset=${offset}&limit=${limit}`,
+        signal
+      );
 
-    if (error) throw new Error(error.message);
-    return (data ?? []).map((row) => buildMessage(row as Record<string, unknown>));
+      if (rows.length === 0) return [];
+
+      const senderIds = Array.from(new Set(rows.map((r) => r.sender_id as string)));
+      const profiles = await restGet<Record<string, unknown>[]>(
+        `profiles?select=*&id=in.${inList(senderIds)}`,
+        signal
+      ).catch(() => [] as Record<string, unknown>[]);
+      const profileMap = new Map(profiles.map((p) => [p.id as string, p]));
+
+      return rows.map((row) =>
+        buildMessage({ ...row, sender: profileMap.get(row.sender_id as string) ?? null })
+      );
+    });
   },
 
   async sendMessage(payload: {
@@ -151,7 +174,6 @@ export const chatService = {
 
     if (error) throw new Error(error.message);
 
-    // Update conversation updated_at
     await supabase
       .from("conversations")
       .update({ updated_at: new Date().toISOString() })
@@ -166,29 +188,20 @@ export const chatService = {
   ): Promise<Conversation> {
     const supabase = getSupabaseClient();
 
-    // Check if conversation already exists
-    const { data: existing } = await supabase
-      .from("conversation_participants")
-      .select("conversation_id, conversations!inner(type)")
-      .eq("user_id", userId1);
+    // Check if a direct conversation between these two already exists
+    const existing1 = await restGet<{ conversation_id: string }[]>(
+      `conversation_participants?select=conversation_id&user_id=eq.${encodeURIComponent(userId1)}`
+    ).catch(() => [] as { conversation_id: string }[]);
 
-    if (existing && existing.length > 0) {
-      const convIds = existing.map(
-        (e) => (e as Record<string, unknown>).conversation_id as string
-      );
-      const { data: match } = await supabase
-        .from("conversation_participants")
-        .select("conversation_id")
-        .eq("user_id", userId2)
-        .in("conversation_id", convIds)
-        .limit(1)
-        .maybeSingle();
+    if (existing1.length > 0) {
+      const convIds = existing1.map((e) => e.conversation_id);
+      const match = await restGet<{ conversation_id: string }[]>(
+        `conversation_participants?select=conversation_id&user_id=eq.${encodeURIComponent(userId2)}&conversation_id=in.${inList(convIds)}&limit=1`
+      ).catch(() => [] as { conversation_id: string }[]);
 
-      if (match) {
+      if (match[0]) {
         const convs = await chatService.getConversations(userId1);
-        const found = convs.find(
-          (c) => c.id === (match as Record<string, unknown>).conversation_id
-        );
+        const found = convs.find((c) => c.id === match[0].conversation_id);
         if (found) return found;
       }
     }
@@ -202,7 +215,6 @@ export const chatService = {
 
     if (convError) throw new Error(convError.message);
 
-    // Add both participants
     const { error: partError } = await supabase
       .from("conversation_participants")
       .insert([
@@ -245,14 +257,11 @@ export const chatService = {
         },
         async (payload) => {
           const row = payload.new as Record<string, unknown>;
-          // Fetch sender profile
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", row.sender_id as string)
-            .single();
-          if (profile) {
-            callback(buildMessage({ ...row, sender: profile }));
+          const profiles = await restGet<Record<string, unknown>[]>(
+            `profiles?select=*&id=eq.${encodeURIComponent(row.sender_id as string)}&limit=1`
+          ).catch(() => [] as Record<string, unknown>[]);
+          if (profiles[0]) {
+            callback(buildMessage({ ...row, sender: profiles[0] }));
           }
         }
       )
