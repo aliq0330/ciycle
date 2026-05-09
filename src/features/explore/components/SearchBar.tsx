@@ -16,11 +16,12 @@ import type { UserProfile, Route, Event, Club } from "@/types";
 interface SearchBarProps {
   className?: string;
   autoFocus?: boolean;
+  initialQuery?: string;
 }
 
-export function SearchBar({ className, autoFocus }: SearchBarProps) {
-  const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
+export function SearchBar({ className, autoFocus, initialQuery = "" }: SearchBarProps) {
+  const [query, setQuery] = useState(initialQuery);
+  const [open, setOpen] = useState(initialQuery.length >= 2);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
