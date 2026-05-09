@@ -11,6 +11,7 @@ export function useRoutes(filters?: {
   difficulty?: Route["difficulty"];
   roadType?: Route["road_type"];
   search?: string;
+  clubId?: string;
 }) {
   const user = useAuthStore((s) => s.user);
 
@@ -26,6 +27,9 @@ export function useRoutes(filters?: {
     initialPageParam: 0,
     getNextPageParam: (lastPage) =>
       lastPage.has_more ? lastPage.page + 1 : undefined,
+    networkMode: "always",
+    retry: 2,
+    retryDelay: 1000,
   });
 }
 

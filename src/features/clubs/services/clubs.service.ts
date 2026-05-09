@@ -230,4 +230,31 @@ export const clubsService = {
     if (!data) return { is_member: false, role: null };
     return { is_member: true, role: data.role as Club["my_role"] };
   },
+
+  async getUserClubs(userId: string): Promise<Club[]> {
+    if (!userId) return [];
+    const supabase = getSupabaseClient();
+
+    const { data: memberships, error: mErr } = await supabase
+      .from("club_members")
+      .select("club_id, role")
+      .eq("user_id", userId)
+      .order("joined_at", { ascending: false });
+
+    if (mErr || !memberships || memberships.length === 0) return [];
+
+    const clubIds = memberships.map((m) => m.club_id);
+    const roleMap = new Map(memberships.map((m) => [m.club_id, m.role as Club["my_role"]]));
+
+    const { data: clubs, error: cErr } = await supabase
+      .from("clubs")
+      .select("*")
+      .in("id", clubIds);
+
+    if (cErr) return [];
+
+    return (clubs ?? []).map((row) =>
+      buildClub(row as ClubRow, true, roleMap.get(row.id) ?? "member")
+    );
+  },
 };

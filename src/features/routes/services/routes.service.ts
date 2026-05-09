@@ -21,6 +21,7 @@ export const routesService = {
     difficulty,
     roadType,
     search,
+    clubId,
   }: {
     userId?: string;
     page?: number;
@@ -28,15 +29,21 @@ export const routesService = {
     difficulty?: Route["difficulty"];
     roadType?: Route["road_type"];
     search?: string;
+    clubId?: string;
   }): Promise<PaginatedResponse<Route>> {
     const supabase = getSupabaseClient();
 
     let query = supabase
       .from("routes")
       .select("*", { count: "exact" })
-      .eq("visibility", "public")
       .range(page * limit, (page + 1) * limit - 1)
       .order("created_at", { ascending: false });
+
+    if (clubId) {
+      query = query.eq("club_id", clubId);
+    } else {
+      query = query.eq("visibility", "public");
+    }
 
     if (difficulty) query = query.eq("difficulty", difficulty);
     if (roadType) query = query.eq("road_type", roadType);

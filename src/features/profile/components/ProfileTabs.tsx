@@ -5,8 +5,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PostCard } from "@/features/feed/components/PostCard";
 import { RouteCard } from "@/features/routes/components/RouteCard";
+import { ClubCard } from "@/features/clubs/components/ClubCard";
 import { BadgeCard } from "./BadgeCard";
 import { useProfilePosts, useProfileRoutes, useProfileBadges } from "../hooks/use-profile";
+import { useUserClubs } from "@/features/clubs/hooks/use-clubs";
 import { cn } from "@/lib/utils";
 
 interface ProfileTabsProps {
@@ -32,7 +34,7 @@ export function ProfileTabs({ userId }: ProfileTabsProps) {
       </TabsContent>
 
       <TabsContent value="clubs">
-        <ClubsTab />
+        <ClubsTab userId={userId} />
       </TabsContent>
 
       <TabsContent value="badges">
@@ -153,16 +155,28 @@ function RoutesTab({ userId }: { userId: string }) {
   );
 }
 
-function ClubsTab() {
+function ClubsTab({ userId }: { userId: string }) {
+  const { data: clubs, isLoading } = useUserClubs(userId);
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-2 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-56 rounded-[20px]" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!clubs || clubs.length === 0) {
+    return <EmptyState message="Henüz kulüp yok" />;
+  }
+
   return (
-    <div
-      className={cn(
-        "flex flex-col items-center justify-center gap-3 py-16",
-        "rounded-[20px] border border-dashed border-[var(--color-border)]"
-      )}
-    >
-      <span className="text-4xl">🏕️</span>
-      <p className="text-sm text-[var(--color-text-muted)]">Kulüp sistemi yakında</p>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {clubs.map((club) => (
+        <ClubCard key={club.id} club={club} />
+      ))}
     </div>
   );
 }

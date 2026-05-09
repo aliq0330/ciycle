@@ -13,6 +13,18 @@ import type { Club } from "@/types";
 
 export const CLUBS_QUERY_KEY = ["clubs"] as const;
 
+export function useUserClubs(userId: string) {
+  return useQuery({
+    queryKey: [...CLUBS_QUERY_KEY, "user", userId],
+    queryFn: () => clubsService.getUserClubs(userId),
+    enabled: !!userId,
+    staleTime: 60_000,
+    networkMode: "always",
+    retry: 2,
+    retryDelay: 1000,
+  });
+}
+
 export function useClubs(filters: Omit<ClubFilters, "page"> = {}) {
   return useInfiniteQuery({
     queryKey: [...CLUBS_QUERY_KEY, filters],

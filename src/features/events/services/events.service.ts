@@ -1,12 +1,18 @@
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { restGet, restCount } from "@/lib/supabase/rest";
 import type { Event, PaginatedResponse, UserProfile } from "@/types";
 import type { Database } from "@/lib/supabase/types";
 import type { CreateEventPayload, EventFilters } from "../types";
 
 type EventRow = Database["public"]["Tables"]["events"]["Row"];
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+type EventParticipantRow = Database["public"]["Tables"]["event_participants"]["Row"];
 
 const PAGE_SIZE = 12;
+
+function buildProfile(row: ProfileRow): UserProfile {
+  return row as unknown as UserProfile;
+}
 
 function buildEvent(
   row: EventRow & { organizer: ProfileRow },
@@ -40,6 +46,7 @@ export const eventsService = {
     page = 0,
     search,
     status,
+    clubId,
   }: EventFilters): Promise<PaginatedResponse<Event>> {
     const supabase = getSupabaseClient();
     const from = page * PAGE_SIZE;
@@ -57,6 +64,10 @@ export const eventsService = {
       query = query.ilike("title", `%${search}%`);
     }
 
+    if (clubId) {
+      query = query.eq("club_id", clubId);
+    }
+
     if (status && status !== "all") {
       if (status === "upcoming") {
         query = query.in("status", ["published"]).gte("start_at", new Date().toISOString());
@@ -65,7 +76,7 @@ export const eventsService = {
       } else if (status === "completed") {
         query = query.in("status", ["completed", "cancelled"]);
       }
-    } else {
+    } else if (!clubId) {
       query = query.in("status", ["published", "ongoing"]);
     }
 
@@ -151,24 +162,42 @@ export const eventsService = {
   },
 
   async joinEvent(eventId: string, userId: string): Promise<void> {
-    // Stub: in production wire up event_participants table RPC
-    void eventId;
-    void userId;
+    const supabase = getSupabaseClient();
+    const { error } = await supabase
+      .from("event_participants")
+      .upsert({ event_id: eventId, user_id: userId, status: "going" });
+    if (error) throw new Error(error.message);
   },
 
   async leaveEvent(eventId: string, userId: string): Promise<void> {
-    // Stub: in production wire up event_participants table RPC
-    void eventId;
-    void userId;
+    const supabase = getSupabaseClient();
+    const { error } = await supabase
+      .from("event_participants")
+      .delete()
+      .eq("event_id", eventId)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
   },
 
-  async getEventParticipants(_eventId: string): Promise<UserProfile[]> {
-    // Stub: in production join event_participants → profiles
-    return [];
+  async getEventParticipants(eventId: string): Promise<UserProfile[]> {
+    const rows = await restGet<EventParticipantRow[]>(
+      `event_participants?event_id=eq.${eventId}&select=user_id`
+    ).catch(() => [] as EventParticipantRow[]);
+
+    if (rows.length === 0) return [];
+
+    const ids = rows.map((r: EventParticipantRow) => r.user_id).join(",");
+    const profiles = await restGet<ProfileRow[]>(
+      `profiles?id=in.(${ids})&select=*`
+    ).catch(() => [] as ProfileRow[]);
+
+    return profiles.map(buildProfile);
   },
 
-  async checkIsJoined(_eventId: string, _userId: string): Promise<boolean> {
-    // Stub: in production query event_participants
-    return false;
+  async checkIsJoined(eventId: string, userId: string): Promise<boolean> {
+    const count = await restCount(
+      `event_participants?event_id=eq.${eventId}&user_id=eq.${userId}`
+    ).catch(() => 0);
+    return count > 0;
   },
 };
