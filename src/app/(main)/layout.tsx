@@ -2,10 +2,12 @@ import type { ReactNode } from "react";
 import { Sidebar } from "@/components/layouts/Sidebar";
 import { BottomNav } from "@/components/layouts/BottomNav";
 import { RightPanel } from "@/components/layouts/RightPanel";
+import { GlobalInitializer } from "@/components/layouts/GlobalInitializer";
 
 export default function MainLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-[var(--color-bg-base)]">
+      <GlobalInitializer />
       {/* Desktop sidebar */}
       <Sidebar />
 
