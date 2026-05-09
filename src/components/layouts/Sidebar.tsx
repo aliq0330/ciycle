@@ -18,6 +18,7 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useSidebarStore } from "@/store/sidebar.store";
 import { useNotificationsStore } from "@/features/notifications/store/notifications.store";
 import { useConversations } from "@/features/chat/hooks/use-chat";
+import { useCreatePostStore } from "@/store/create-post.store";
 import { ROUTES } from "@/config/app";
 
 const STATIC_NAV = [
@@ -39,6 +40,7 @@ export function Sidebar() {
   const notifUnread = useNotificationsStore((s) => s.unreadCount);
   const { data: conversations } = useConversations();
   const msgUnread = conversations?.reduce((sum, c) => sum + (c.unread_count ?? 0), 0) ?? 0;
+  const openCreatePost = useCreatePostStore((s) => s.open);
 
   useEffect(() => { close(); }, [pathname, close]);
 
@@ -77,7 +79,7 @@ export function Sidebar() {
 
       {/* Create post button */}
       <div className="px-4 py-4">
-        <Button size="md" className="w-full" leftIcon={<Plus className="h-4 w-4" />}>
+        <Button size="md" className="w-full" leftIcon={<Plus className="h-4 w-4" />} onClick={openCreatePost}>
           Paylaş
         </Button>
       </div>

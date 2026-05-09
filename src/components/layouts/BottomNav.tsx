@@ -9,6 +9,7 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useSidebarStore } from "@/store/sidebar.store";
 import { useNotificationsStore } from "@/features/notifications/store/notifications.store";
 import { useConversations } from "@/features/chat/hooks/use-chat";
+import { useCreatePostStore } from "@/store/create-post.store";
 import { ROUTES } from "@/config/app";
 
 export function BottomNav() {
@@ -18,6 +19,7 @@ export function BottomNav() {
   const notifUnread = useNotificationsStore((s) => s.unreadCount);
   const { data: conversations } = useConversations();
   const msgUnread = conversations?.reduce((sum, c) => sum + (c.unread_count ?? 0), 0) ?? 0;
+  const openCreatePost = useCreatePostStore((s) => s.open);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden">
@@ -29,13 +31,13 @@ export function BottomNav() {
           <NavItem href={ROUTES.explore} icon={Compass} label="Keşfet" pathname={pathname} />
 
           {/* FAB */}
-          <Link
-            href={ROUTES.feed}
+          <button
+            onClick={openCreatePost}
             className="flex items-center justify-center rounded-full bg-[var(--color-primary)] text-white shadow-lg shadow-[var(--color-primary)]/40 active:scale-90 transition-transform duration-150 -mt-4"
             style={{ height: 52, width: 52 }}
           >
             <Plus className="h-6 w-6" strokeWidth={2.5} />
-          </Link>
+          </button>
 
           <NavItem href={ROUTES.notifications} icon={Bell} label="Bildirimler" pathname={pathname} badge={notifUnread} />
 
