@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { ClubHeader } from "@/features/clubs/components/ClubHeader";
 import { MemberCard } from "@/features/clubs/components/MemberCard";
+import { ClubWallFeed } from "@/features/clubs/components/ClubWallFeed";
 import { RouteCard } from "@/features/routes/components/RouteCard";
 import { EventCard } from "@/features/events/components/EventCard";
 import { useClub, useClubMembers } from "@/features/clubs/hooks/use-clubs";
@@ -51,19 +52,12 @@ export default function ClubDetailPage() {
         onTabChange={(tab) => setActiveTab(tab as Tab)}
       />
 
-      {activeTab === "wall" && (
+      {activeTab === "wall" && club && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center gap-3 py-16 text-center"
         >
-          <span className="text-4xl">📋</span>
-          <h3 className="font-semibold text-[var(--color-text-primary)]">
-            Kulüp Duvarı
-          </h3>
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            Kulüp gönderileri yakında burada görünecek
-          </p>
+          <ClubWallFeed clubId={club.id} />
         </motion.div>
       )}
 

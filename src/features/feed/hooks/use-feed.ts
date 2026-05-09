@@ -136,3 +136,36 @@ export function useCreatePost() {
     },
   });
 }
+
+export function useClubPosts(clubId: string) {
+  return useInfiniteQuery({
+    queryKey: ["club-posts", clubId],
+    queryFn: ({ pageParam }) =>
+      feedService.getClubPosts({ clubId, page: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length === 20 ? allPages.length : undefined,
+    enabled: !!clubId,
+    staleTime: 60_000,
+    networkMode: "always",
+    retry: 2,
+    retryDelay: 1000,
+  });
+}
+
+export function useCreateClubPost(clubId: string) {
+  const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+
+  return useMutation({
+    mutationFn: (content: string) =>
+      feedService.createPost({
+        author_id: user!.id,
+        content,
+        club_id: clubId,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["club-posts", clubId] });
+    },
+  });
+}

@@ -166,3 +166,16 @@ export function useUnfollowUser() {
     },
   });
 }
+
+export function useUpdateProfile() {
+  const queryClient = useQueryClient();
+  const currentUser = useAuthStore((s) => s.user);
+
+  return useMutation({
+    mutationFn: (data: Partial<UserProfile>) =>
+      profileService.updateProfile(currentUser!.id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+    },
+  });
+}

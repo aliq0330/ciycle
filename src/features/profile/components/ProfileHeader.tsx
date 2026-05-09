@@ -1,7 +1,7 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { CheckCircle, MapPin, Globe, Edit2, UserPlus, UserCheck } from "lucide-react";
 import { motion } from "framer-motion";
 import { Avatar } from "@/components/ui/avatar";
@@ -12,6 +12,7 @@ import { formatNumber } from "@/lib/utils";
 import { useFollowUser, useUnfollowUser } from "../hooks/use-profile";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { cn } from "@/lib/utils";
+import { EditProfileModal } from "./EditProfileModal";
 import type { UserProfile } from "@/types";
 
 interface ProfileHeaderProps {
@@ -29,6 +30,7 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
   const isOwnProfile = currentUser?.id === profile.id;
   const { mutate: follow, isPending: following } = useFollowUser();
   const { mutate: unfollow, isPending: unfollowing } = useUnfollowUser();
+  const [editOpen, setEditOpen] = useState(false);
 
   const vehicle = VEHICLE_BADGES[profile.vehicle_type];
 
@@ -73,12 +75,21 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
         {/* Action buttons */}
         <div className="flex items-center justify-end gap-2 pt-3 pb-2">
           {isOwnProfile ? (
-            <Button asChild variant="secondary" size="sm">
-              <Link href="/settings">
-                <Edit2 className="h-3.5 w-3.5" />
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setEditOpen(true)}
+              >
+                <Edit2 className="h-3.5 w-3.5 mr-1.5" />
                 Düzenle
-              </Link>
-            </Button>
+              </Button>
+              <EditProfileModal
+                open={editOpen}
+                onClose={() => setEditOpen(false)}
+                profile={profile}
+              />
+            </>
           ) : (
             <motion.div whileTap={{ scale: 0.95 }}>
               <Button
